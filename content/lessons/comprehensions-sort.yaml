@@ -1,0 +1,301 @@
+schemaVersion: 1
+id: comprehensions-sort
+title: 简单推导式与排序 key
+goal: 用单层推导式清楚表达转换与过滤规则；用命名函数作排序键得到稳定顺序。
+revision: 1
+status: published
+prerequisites: [dicts, functions, alias-copy]
+steps:
+  - id: s-goal
+    type: read
+    title: 本课目标与需要唤回的能力
+    bodyMd: |
+      本课需要你已经会用 for、if、append 写逐条清洗循环（06），并会定义带返回值的命名函数（09）。推导式和排序 key 都不是新魔法：它们只是把你已经会写的循环和函数换一种更紧凑的写法。
+      学完这一课，你要能做到两件事：把单层 for/if/append 循环改写成等价的推导式，也能再改回去；用 sorted 加命名函数作 key 得到排序结果，并说清原列表为什么没变、同键为什么保序。
+  - id: s-mechanism
+    type: read
+    title: 核心机制：推导式是循环的紧凑写法，key 是比较依据
+    bodyMd: |
+      一层列表推导式可以展开成已经会写的 for/if/append：`for` 取项、`if` 在追加之前过滤、`for` 前面的表达式决定收集什么。过滤发生在追加之前，不通过滤的项根本不会被追加。
+      sorted 产生一个新列表，原列表不动；list.sort 原地排序并返回 None。key 要的是"从每项提取比较依据"的函数本身——写函数名 `minutes_key`，不要写成 `minutes_key()` 立即调用。分钟数相同的项保持原来的相对顺序。
+
+      ```python
+      def minutes_key(record):
+          return record["minutes"]
+
+
+      records = [
+          {"name": "b", "minutes": 10},
+          {"name": "a", "minutes": 30},
+      ]
+      ordered = sorted(records, key=minutes_key)
+      ```
+  - id: s-predict
+    type: reveal
+    title: 主例：先预测，再展开
+    bodyMd: |
+      下面是 06 做过的清洗循环，以及改写成的单层推导式。先别往下翻：在纸上写下你预测的两个输出，并判断两者是否相同，再点击展开核对。
+
+      ```python
+      raw = [" A ", "", "B"]
+      cleaned = []
+      for x in raw:
+          if x.strip():
+              cleaned.append(x.strip().lower())
+      short = [x.strip().lower()
+               for x in raw if x.strip()]
+      print(cleaned, short)
+      ```
+    revealLabel: 先预测，再点开展开实际输出
+    revealMd: |
+      实际输出：
+
+      ```
+      ['a', 'b'] ['a', 'b']
+      ```
+
+      逐行追踪：循环版逐项判断，非空才规范化并追加，得到 ["a", "b"]；推导式按同样的顺序做同样的事：`for x in raw` 取项，`if x.strip()` 在追加前过滤，`x.strip().lower()` 决定收集规范化后的值；空字符串的 strip 结果为空，不通过滤。
+      为什么相同？推导式的三部分与循环的三行一一对应。推导式不是"更高级的写法"，只是把已会的循环写紧凑；转换需要多个步骤时，仍然保留普通循环，不硬写推导式。
+  - id: s-misconception
+    type: reveal
+    title: 误区对照：sorted 会把原列表排好吗
+    bodyMd: |
+      有人用 sorted 得到有序结果，又有人换成 list.sort 后直接打印它的返回值。先在纸上写下你预测的三行输出，再点击展开核对。这一步只改变一个条件：sorted 换成 list.sort。
+
+      ```python
+      def minutes_key(record):
+          return record["minutes"]
+
+      records = [{"name": "a", "minutes": 30},
+                 {"name": "b", "minutes": 10}]
+      ordered = sorted(records,
+                       key=minutes_key)
+      print([r["name"] for r in ordered])
+      print([r["name"] for r in records])
+      print(records.sort(key=minutes_key))
+      ```
+    revealLabel: 先预测，再点开展开实际输出
+    revealMd: |
+      实际输出：
+
+      ```
+      ['b', 'a']
+      ['a', 'b']
+      None
+      ```
+
+      追踪：sorted 返回一个新列表 ordered，原 records 保持 ["a", "b"] 的顺序；list.sort 是原地排序——它把 records 本身改成了 ["b", "a"] 的顺序，但交回的是 None。
+      两个结论：第一，用了 sorted 不等于原列表已排好，原列表没动；第二，list.sort 的返回值不能当列表用，它是"做了事但没交回结果"的操作（06 的 append 也是如此）。要新列表用 sorted，要原地改就用 list.sort 并直接看原列表。
+  - id: s-quiz-1
+    type: quiz
+    title: 小测一：选出等价的普通循环
+    questionId: comprehensions-sort-q1
+    revision: 1
+    promptMd: |
+      ```python
+      raw = [" A ", "", "B"]
+      result = [x.strip().lower()
+                for x in raw if x.strip()]
+      ```
+      以下哪个普通循环与该推导式等价？result 的值是什么？
+    options:
+      - id: a
+        textMd: |
+          ```python
+          cleaned = []
+          for x in raw:
+              if x.strip():
+                  cleaned.append(x.strip().lower())
+          ```
+          result 是 `["a", "b"]`
+        explanationMd: 正确。过滤条件 `if x.strip()` 在追加之前先判断；空字符串的 strip 结果为空，不通过滤，直接跳过追加；收集的是规范化后的值。
+      - id: b
+        textMd: |
+          ```python
+          cleaned = []
+          for x in raw:
+              cleaned.append(x.strip().lower())
+              if x.strip():
+                  cleaned.pop()
+          ```
+          result 是 `["a", "b"]`
+        explanationMd: 对应"先追加再过滤"的错误理解：这段把通过过滤的项又弹出了，最终只剩 `[""]`；推导式的 if 在追加之前判断，不通过的项根本不会被追加，不存在"追加了再删"这一步。
+      - id: c
+        textMd: |
+          ```python
+          cleaned = []
+          for x in raw:
+              cleaned.append(x.strip().lower())
+          ```
+          result 是 `["a", "b"]`
+        explanationMd: 对应"推导式的 if 只是装饰"的错误理解：没有过滤条件，空字符串会被规范化成 `""` 留在结果里，实际得到 `["a", "", "b"]`。if 决定了哪些项能进入结果，不是可有可无的。
+      - id: d
+        textMd: |
+          ```python
+          cleaned = []
+          for x in raw:
+              if x.strip().lower():
+                  cleaned.append(x)
+          ```
+          result 是 `["a", "b"]`
+        explanationMd: 对应"判断依据与收集值混淆"的错误理解：这段收集的是未经规范化的原值 `x`，实际得到 `[" A ", "B"]`。推导式里 for 前面的表达式决定收集什么，if 只决定收不收，两者不能混用。
+    correctOptionId: a
+    explanationMd: |
+      推导式 `[x.strip().lower() for x in raw if x.strip()]` 的三部分与循环三行对应：for 取项、if 在追加前过滤、表达式决定收集规范化后的值。`" "` 的 strip 为空串，不通过滤，所以结果是 `["a", "b"]`。
+  - id: s-quiz-2
+    type: quiz
+    title: 小测二：选出正确的排序写法
+    questionId: comprehensions-sort-q2
+    revision: 1
+    promptMd: |
+      ```python
+      def minutes_key(record):
+          return record["minutes"]
+
+      records = [
+          {"name": "a", "minutes": 30},
+          {"name": "b", "minutes": 10},
+          {"name": "c", "minutes": 10},
+      ]
+      ordered = sorted(records,
+                       key=minutes_key)
+      ```
+      以下哪个选项正确描述了排序调用、ordered 的顺序与原 records？
+    options:
+      - id: a
+        textMd: 用 `sorted(records, key=minutes_key)`；ordered 依次是 b、c、a；records 仍是 a、b、c
+        explanationMd: 正确。key 传的是函数本身这个"处理规则"，sorted 在比较前对每项调用它提取分钟数；b、c 同为 10 分钟，保持原相对顺序 b 在前；sorted 只产出新列表，原列表不动。
+      - id: b
+        textMd: 用 `sorted(records, key=minutes_key())`；ordered 依次是 b、c、a；records 仍是 a、b、c
+        explanationMd: 对应"把规则写成一次调用"的错误理解：`minutes_key()` 缺少必需的位置参数，会立即报错；key 要的是函数本身，不是调用一次算出来的值。规则是"怎么做"，值是"做完的结果"，两者不能互换。
+      - id: c
+        textMd: 用 `sorted(records, key=minutes_key)`；ordered 依次是 b、c、a；records 也变成 b、c、a
+        explanationMd: 对应"sorted 原地排序"的错误理解：sorted 返回新列表，原列表不动；把原列表本身排好的是 list.sort。用了 sorted 就不能再指望原列表跟着变。
+      - id: d
+        textMd: 用 `sorted(records, key=minutes_key)`；ordered 依次是 c、b、a；records 仍是 a、b、c
+        explanationMd: 对应"同键随机重排"的错误理解：相同分钟数的项保持原相对顺序，输入时 b 在 c 前，输出 b 仍在 c 前，不会随机交换。这是稳定排序的保证。
+    correctOptionId: a
+    explanationMd: |
+      key 回答"按什么比"：传函数本身，sorted 负责在需要时调用它。同键保序是稳定排序的保证——b、c 都是 10 分钟，输入时 b 在前，输出 b 仍在前。sorted 只产出新列表，原 records 保持 a、b、c 不变。
+  - id: s-recap
+    type: read
+    title: 回忆总结与独立任务
+    bodyMd: |
+      本课要点：
+      1. 单层推导式与 for/if/append 循环可以互改；过滤发生在追加之前，不通过滤的项不会被追加。
+      2. sorted 返回新列表，原列表不动；list.sort 原地排序并返回 None，返回值不能当列表用。
+      3. key 传函数本身（如 minutes_key），不要加括号立即调用；key 只负责"提取比较依据"。
+      4. 相同排序键的项保持原相对顺序；转换需要多个步骤时保留普通循环，不硬写推导式。
+      口头检查：这里传给 key 的是处理规则，还是已经算出来的值？
+      独立任务（在 PyCharm 完成）：把本课主例的推导式改回循环运行一次，再把 sorted 换成 list.sort，观察原列表与返回值的变化。这里不提供答案代码。
+  - id: s-practice
+    type: practice
+    title: 模块实践 P3：不修改输入的记录清洗与排序
+    taskMd: |
+      把一批学习记录规范化、过滤无效记录，再按 minutes 升序输出。处理过程必须拆成四个命名清楚的小函数；不能修改输入列表，也不能修改其中的原始字典。
+
+      固定输入（直接写在脚本开头）：
+
+      ```python
+      records = [
+          {"name": " Python ", "minutes": 30},
+          {"name": "", "minutes": 10},
+          {"name": "SQL", "minutes": 20},
+          {"name": "python", "minutes": 15},
+          {"name": "API", "minutes": 20},
+          {"name": "CLI", "minutes": 0},
+          {"name": "BAD", "minutes": -1},
+      ]
+      ```
+
+      规则锁定：每条记录都有 name（字符串）与 minutes（整数）。名称先去两端空白再转小写；规范名称为空或 minutes 为负时忽略该记录；minutes 为 0 是合法记录，必须保留。不同记录即使同名也保留，不合并、不去重。按 minutes 升序输出，分钟数相同的记录保持原相对顺序。缺键、错误类型等情况不在本实践处理范围。
+
+      函数职责固定：
+
+      - `normalize_name(text)`：返回规范名称字符串。
+      - `clean_record(record)`：返回新建的有效记录字典；无效时返回 None；不修改原记录。
+      - `clean_records(records)`：用普通循环逐条调用 clean_record，收集非 None 的结果并返回新列表；空输入返回空列表。每条记录只调用一次 clean_record，不强行用推导式。
+      - `minutes_key(record)`：返回用于排序的分钟数。
+
+      顶层代码串联清洗、sorted 与输出。标准样例的完整输出：
+
+      ```text
+      有效记录：5
+      cli: 0
+      python: 15
+      sql: 20
+      api: 20
+      python: 30
+      ```
+    hintMd: |
+      提示一（怎么拆任务）：先一次只写一个函数。normalize_name 只处理一个字符串；clean_record 只处理一条记录，先试有效记录，再试空名称、负分钟与零分钟；clean_records 只负责循环与收集；minutes_key 只返回分钟数。四个函数各自跑通，再写顶层串联。
+      提示二（相关旧课）：规范化用 03 的 strip/lower；循环收集用 06 的 for/append；返回契约用 09 的 return；"不修改输入"用 11 的新建字典代替原地修改；排序用本课的 sorted 与 key。
+      提示三（接近实现）：clean_record 里先算出规范名称与分钟数，再做一次"无效则返回 None"的判断，最后用新建的字典返回；clean_records 的循环里把每条的清洗结果存到一个临时名字，判断不是 None 才 append；顶层先清洗、再 sorted，最后按"有效记录：N"与"名称: 分钟"的格式输出。
+    solutionMd: |
+      参考解法按函数拆块，先写单条记录的两个函数：
+
+      ```python
+      def normalize_name(text):
+          return text.strip().lower()
+
+
+      def clean_record(record):
+          name = normalize_name(record["name"])
+          minutes = record["minutes"]
+          if name == "" or minutes < 0:
+              return None
+          return {"name": name, "minutes": minutes}
+      ```
+
+      再写批量处理与排序键：
+
+      ```python
+      def clean_records(records):
+          result = []
+          for record in records:
+              cleaned = clean_record(record)
+              if cleaned is not None:
+                  result.append(cleaned)
+          return result
+
+
+      def minutes_key(record):
+          return record["minutes"]
+      ```
+
+      顶层先放固定输入：
+
+      ```python
+      records = [
+          {"name": " Python ", "minutes": 30},
+          {"name": "", "minutes": 10},
+          {"name": "SQL", "minutes": 20},
+          {"name": "python", "minutes": 15},
+          {"name": "API", "minutes": 20},
+          {"name": "CLI", "minutes": 0},
+          {"name": "BAD", "minutes": -1},
+      ]
+      ```
+
+      最后串联清洗、排序与输出：
+
+      ```python
+      cleaned = clean_records(records)
+      ordered = sorted(cleaned, key=minutes_key)
+
+      print(f"有效记录：{len(ordered)}")
+      for item in ordered:
+          name = item["name"]
+          minutes = item["minutes"]
+          print(f"{name}: {minutes}")
+      ```
+
+      核对三处：清洗结果里应有 5 条（空名称与负分钟被过滤，零分钟保留）；排序后 sql 在 api 前，两个 python 都在；处理前后原 records 的顺序、空格与大小写都没有变化。
+    acceptance:
+      - 普通样例：输出与固定输出一致，sql 在 api 前，两个 python 记录均保留。
+      - 空输入：clean_records 返回空列表，输出"有效记录：0"。
+      - 单条 name 非空、minutes 为 0 的记录：该记录保留。
+      - 全部名称为空白或分钟数为负：无有效记录。
+      - 处理前后查看原 records：原列表顺序、原 name 中的空格/大小写、各字段值均不变。
+      - 对同一输入连续运行两次清洗：得到内容相同的结果，没有第二次额外累积。
+      - 修改一个清洗结果字典的 name：对应原始记录的 name 不随之改变。

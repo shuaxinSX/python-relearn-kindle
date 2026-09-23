@@ -1,0 +1,200 @@
+schemaVersion: 1
+id: scope-defaults
+title: 作用域与默认参数
+goal: 分清每次调用的局部状态与函数定义时确定的默认值；写出多次调用互不积累的函数。
+revision: 1
+status: published
+prerequisites: [types-and-none, lists-tuples, functions]
+steps:
+  - id: s-goal
+    type: read
+    title: 本课目标与需要唤回的能力
+    bodyMd: |
+      本课需要你已经能写出带返回值的函数（09），并知道 append 会修改列表本身（06）。上一课还留了一个问题没有展开：每次调用是完全独立的吗？函数定义时写下的东西，会不会被后面的调用一直带着？
+      学完这一课，你要能做到三件事：说清函数内重新赋值会不会影响同名的外部变量；说清默认参数的值是在什么时候确定的；写出省略参数时多次调用互不积累的函数。
+  - id: s-mechanism
+    type: read
+    title: 核心机制：局部绑定与定义时确定的默认值
+    bodyMd: |
+      函数体内的普通赋值，只产生这一次调用的局部绑定：同名的外部变量不会因此被改动。形参也是这一次调用的局部名字；省略参数和显式传参是两种不同的调用约定。
+      默认值表达式在执行 def 的那一刻求值一次，之后外部变量再变，已经确定的默认值不变。如果默认值是一个可变对象，后续省略参数的调用会继续使用同一个对象。
+
+      ```python
+      default_limit = 5
+
+
+      def show(n=default_limit):
+          return n
+
+
+      default_limit = 2
+      print(show())
+      print(show(9))
+      ```
+  - id: s-predict
+    type: reveal
+    title: 主例：先预测，再展开
+    bodyMd: |
+      下面的脚本里，外面和函数内各有一个 limit。先别往下翻：在纸上写下你预测的两行输出，再点击展开核对。
+      预测时逐行追踪：函数内的 `limit = 3` 绑定的是哪一份状态？函数结束后，它还存在吗？第二行读取的又是哪一个 limit？
+
+      ```python
+      limit = 10
+
+
+      def first():
+          limit = 3
+          return limit
+
+
+      print(first())
+      print(limit)
+      ```
+    revealLabel: 先预测，再点开展开实际输出
+    revealMd: |
+      实际输出：
+
+      ```
+      3
+      10
+      ```
+
+      逐行追踪：函数内的 `limit = 3` 是这一次调用的局部绑定，只在这次执行里有效；return 把 3 交回，第一行显示 3；函数结束，局部绑定消失；第二行读取的是外部的 limit，它从没被碰过，仍是 10。
+      为什么不是 3、3？函数内赋值不会自动写回同名的外部变量。同名不等于同一份状态：要判断影响，先问"这次赋值绑定的是哪一份"，而不是看名字长得像不像。
+  - id: s-misconception
+    type: reveal
+    title: 误区对照：默认空列表被两次调用累积
+    bodyMd: |
+      下面的 add_tag 给 bucket 准备了一个默认空列表。连续调用两次，都不传 bucket：先在纸上写下你预测的两行输出，再点击展开核对。这一步只改变一个条件：同一个默认列表被连续使用。
+
+      ```python
+      def add_tag(tag, bucket=[]):
+          bucket.append(tag)
+          return bucket
+
+
+      print(add_tag("sql"))
+      print(add_tag("api"))
+      ```
+    revealLabel: 先预测，再点开展开实际输出
+    revealMd: |
+      实际输出：
+
+      ```
+      ['sql']
+      ['sql', 'api']
+      ```
+
+      追踪：默认值 `[]` 在执行 def 时建立了一个列表对象，之后每次省略 bucket 的调用都复用它；第一次 append 后它变成 ["sql"]；第二次调用省略 bucket，再次拿到同一个列表，append 后变成 ["sql", "api"]。
+      两个结论：第一，默认值不是"每次调用重新生成"的，它在定义时只建立一次；第二，可变默认对象会在多次调用之间留下状态，这正是"上一条任务污染下一条任务"的典型来源。修复办法：用 None 表示"未提供"，在函数体内新建列表（见小测二）。
+  - id: s-quiz-1
+    type: quiz
+    title: 小测一：预测输出
+    questionId: scope-defaults-q1
+    revision: 1
+    promptMd: |
+      ```python
+      limit = 10
+
+
+      def first():
+          limit = 3
+          return limit
+
+
+      print(first())
+      print(limit)
+      ```
+      两行输出依次是什么？
+    options:
+      - id: a
+        textMd: "`3`、`10`"
+        explanationMd: 正确。函数内的 `limit = 3` 只是这一次调用的局部绑定，return 交回 3；函数结束局部绑定消失，外部 limit 从没被改动，仍是 10。
+      - id: b
+        textMd: "`3`、`3`"
+        explanationMd: 对应"同名必同步"的错误理解：认为函数内的 `limit = 3` 写回了外部变量。局部绑定只在调用期间存在，函数结束就消失，不会自动写回同名外部变量。
+      - id: c
+        textMd: "`10`、`10`"
+        explanationMd: 对应"外部值覆盖一切"的错误理解：认为函数内也只能读到外部的 10。函数内的赋值建立的是新的局部绑定，return 交回的是局部值 3，而不是外部值。
+      - id: d
+        textMd: "`10`、`3`"
+        explanationMd: 对应"内外顺序颠倒"的错误理解：第一行是调用结果，由函数内的局部绑定决定，为 3；第二行读取的才是外部 limit，为 10。先分清"哪一行读的是哪一份状态"。
+    correctOptionId: a
+    explanationMd: |
+      调用期间的局部名字与外部名字即使同名，也是两份独立的绑定。函数结束，局部绑定消失，外部值保持原样。追踪时永远先问：这一行读到的，到底是哪一份绑定？
+  - id: s-quiz-2
+    type: quiz
+    title: 小测二：解释累积并选出修复
+    questionId: scope-defaults-q2
+    revision: 1
+    promptMd: |
+      ```python
+      def add_tag(tag, bucket=[]):
+          bucket.append(tag)
+          return bucket
+
+
+      print(add_tag("sql"))
+      print(add_tag("api"))
+      ```
+      第二行输出什么？以下哪项解释与修复都正确？
+    options:
+      - id: a
+        textMd: |
+          第二行输出 `['sql', 'api']`。原因是默认 `[]` 在定义时建立、后续省略参数的调用一直复用同一个对象。修复：
+
+          ```python
+          def add_tag(tag, bucket=None):
+              if bucket is None:
+                  bucket = []
+              bucket.append(tag)
+              return bucket
+          ```
+        explanationMd: 正确。def 只执行一次，默认对象只在定义时建立一次；用 None 表示"调用者未提供"，在函数体内新建列表，每次省略参数的调用都得到独立的新列表，互不积累。
+      - id: b
+        textMd: |
+          第二行输出 `['api']`。原因是每次省略 bucket 都会重新建一个空列表。修复：
+
+          ```python
+          def add_tag(tag, bucket=[]):
+              bucket = []
+              bucket.append(tag)
+              return bucket
+          ```
+        explanationMd: 对应"默认值每次重建"的错误理解：实际上 def 只执行一次，默认对象只建一次，不会每次重建。这个"修复"在函数体内又新建了列表，调用者显式传入的 bucket 会被丢弃，约定被破坏。
+      - id: c
+        textMd: |
+          第二行输出 `['sql', 'api']`。原因是默认 `[]` 在定义时建立、后续调用复用。修复是把 `[]` 换成 `{}`：
+
+          ```python
+          def add_tag(tag, bucket={}):
+              bucket[tag] = True
+              return bucket
+          ```
+        explanationMd: 对应"换容器类型就能避免共享"的错误理解：字典同样是可变对象，同样在定义时建立、被后续调用复用，共享问题一点没变，还改变了函数约定的数据类型。
+      - id: d
+        textMd: |
+          第二行输出 `['sql', 'api']`。原因是默认 `[]` 在定义时建立、后续调用复用。修复：
+
+          ```python
+          def add_tag(tag, bucket=None):
+              if not bucket:
+                  bucket = []
+              bucket.append(tag)
+              return bucket
+          ```
+        explanationMd: 对应"空值判断等价"的错误理解：调用者显式传入空列表时，本意是用自己的列表继续追加；`not bucket` 会把"传入空列表"和"未提供"混为一谈。要区分这两种约定，用 `bucket is None` 判断。
+    correctOptionId: a
+    explanationMd: |
+      关键只有一句：默认对象在定义时建立，之后省略参数的调用一直复用它，所以第二次调用看到的是第一次留下的 ["sql"]。修复不是换一种可变对象，而是换一种约定：用 None 表示"未提供"，在函数体内新建列表。新建发生在每次调用时，复用发生在定义时——"这个列表是在什么时候创建的"，决定了它会不会跨调用积累。
+  - id: s-recap
+    type: read
+    title: 回忆总结与独立任务
+    bodyMd: |
+      本课要点：
+      1. 函数内普通赋值是这一次调用的局部绑定，不影响同名的外部变量。
+      2. 形参属于这一次调用；省略参数与显式传参是两种不同的调用约定。
+      3. 默认值在执行 def 时求值一次；可变默认对象会被多次调用复用，留下跨调用的状态。
+      4. 需要每次新建容器时，用 None 表示未提供，在函数体内新建；用 `is None` 区分"未提供"与"传入空列表"。
+      口头检查：这个列表是在什么时候创建的？
+      独立任务（在 PyCharm 完成）：写出 add_tag 的 None 修复版，连续调用三次都不传 bucket，确认每次只返回本次的一项；再显式传入自己的列表调用一次，确认互不干扰。这里不提供答案代码。

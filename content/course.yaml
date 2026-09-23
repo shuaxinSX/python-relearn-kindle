@@ -5,4 +5,13 @@ pythonVersion: "3.13"
 modules:
   - id: m1
     title: M1 读懂基本代码
-    lessonIds: [run-and-bindings]
+    lessonIds: [run-and-bindings, types-and-none, strings, conditions]
+  - id: m2
+    title: M2 操作常用数据
+    lessonIds: [loops, lists-tuples, dicts, sets]
+  - id: m3
+    title: M3 写出可解释的函数
+    lessonIds: [functions, scope-defaults, alias-copy, comprehensions-sort]
+  - id: m4
+    title: M4 从片段走向脚本
+    lessonIds: [exceptions, paths-text, modules-venv, tests-boundaries]

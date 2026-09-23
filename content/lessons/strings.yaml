@@ -1,0 +1,157 @@
+schemaVersion: 1
+id: strings
+title: 字符串、切片与格式化
+goal: 把一段原始文本规范化为统一格式，并解释索引、切片和每一步操作究竟返回了什么。
+revision: 1
+status: published
+prerequisites:
+  - types-and-none
+steps:
+  - id: s-goal
+    type: read
+    title: 本课目标与需要唤回的能力
+    bodyMd: |
+      上一课学会了先判断类型再运算：文本的 `+` 是拼接，不是算术。本课唤回它，并处理真实世界里常见的脏文本。
+      学完这一课，你要能做到：拿到 `" Report.TXT "` 这样的原始文本，先去两端空白、再转小写，得到规范的 `"report.txt"`；能用索引和切片取出指定部分；能把名称和费用拼成一句规范的说明。每一步都要说清：返回的是什么，原值变了没有。
+  - id: s-mechanism
+    type: read
+    title: 核心机制：按位置取，方法返回新文本
+    bodyMd: |
+      字符串里的字符按位置编号，第一个字符的下标是 0。`name[0:6]` 取下标 0 到 5 的字符：取左端，不取右端。`name[-3:]` 从倒数第 3 个字符取到结尾，冒号后面空着就是"一直取到最后"。
+      字符串不能原地改一个字符：`strip()` 去掉两端空白、`lower()` 转小写，都是交回一个处理好的新文本，原字符串不动。想要结果，就用名字把它接住。
+      `f"应付：{total:.2f} 元"` 把 total 嵌入一句话：`{total:.2f}` 只负责显示成两位小数；total 本人还是整数，没有变成文本。
+
+      ```python
+      name = "report.txt"
+      print(len(name))  # 10 个字符
+      print(name[0:6])  # 下标 0 到 5
+      print(name[-3:])  # 最后 3 个字符
+      print(name)       # 还是 "report.txt"
+      total = 68
+      print(f"应付：{total:.2f} 元")
+      ```
+  - id: s-predict
+    type: reveal
+    title: 主例：先预测，再展开
+    bodyMd: |
+      下面代码把原始文件名规范化。先别往下翻：在纸上写下你预测的输出，再点击展开核对。
+      预测时逐行问自己：这一步返回了什么？结果交给谁了？raw 的值在哪一步发生变化？
+
+      ```python
+      raw = " Report.TXT "
+      step1 = raw.strip()    # 去掉两端空白
+      clean = step1.lower()  # 转成小写
+      print(clean)
+      print(raw)
+      ```
+    revealLabel: 先预测，再点开展开实际输出
+    revealMd: |
+      实际输出：
+
+      ```
+      report.txt
+       Report.TXT 
+      ```
+
+      逐行追踪：第 2 行 `strip()` 只去掉两端空白，返回新文本 `"Report.TXT"` 绑定给 step1，raw 不变；第 3 行 `lower()` 返回 `"report.txt"` 绑定给 clean；第 4 行显示 clean；第 5 行显示 raw，证明原值完整保留。
+      为什么不是其他结果？字符串方法从不原地修改：它只交回处理后的新文本。想要结果，就必须用名字接住。另外注意，`strip()` 只管两端，不管单词之间的空格。
+  - id: s-misconception
+    type: reveal
+    title: 误区对照：调用了方法，raw 就干净了吗
+    bodyMd: |
+      有人认为"调用了 `strip()`，raw 就被清洗好了"。下面这段代码只改一个条件：不再用名字接住返回结果。
+      先在纸上写下你的预测：print 输出什么？再点击展开核对实际输出和解释。
+    revealLabel: 先预测，再点开展开实际输出
+    revealMd: |
+      实际输出：
+
+      ```
+       Report.TXT 
+      ```
+
+      逐行追踪：第 2、3 行的方法调用都执行了，也都返回了新文本，但没有名字接住，结果被直接丢弃；第 4 行显示的仍是原 raw。
+      一个结论：执行了不等于保存了。方法返回的新文本不用名字接住，就等于白做。想用结果必须赋值，这是上一课"转换产生新值"的同一条规则。
+  - id: s-quiz-1
+    type: quiz
+    title: 小测一：判断切片结果
+    questionId: strings-q1
+    revision: 1
+    promptMd: |
+      ```python
+      name = "report.txt"
+      ```
+      `name[0:6]` 和 `name[-3:]` 的结果分别是什么？选出全对的一组。
+    options:
+      - id: a
+        textMd: |
+          `"report"` 和 `"txt"`
+        explanationMd: 正确。下标从 0 开始：`[0:6]` 取下标 0 到 5，即 report；`[-3:]` 从倒数第 3 个字符取到结尾，即 txt。
+      - id: b
+        textMd: |
+          `"report."` 和 `"txt"`
+        explanationMd: 对应"右端下标也包含在内"的错误理解：认为 `[0:6]` 会取到下标 6 的字符。切片取左端、不取右端，下标 6 的 `.` 不在结果里。
+      - id: c
+        textMd: |
+          `"repor"` 和 `"txt"`
+        explanationMd: 对应"右端下标还要再减一"的错误理解：认为 `[0:6]` 只取 5 个字符。6 本来就是"取到但不包含"的位置，不需要再减一；减了就少取一个 t。
+      - id: d
+        textMd: |
+          `"report"` 和 `"xt"`
+        explanationMd: 对应"负索引多往后数一位"的错误理解：把 `-3:` 错当成从倒数第 2 个开始，漏掉了第一个 t。`-3` 就是倒数第 3 个字符，从它开始取到结尾正好是 txt。
+    correctOptionId: a
+    explanationMd: |
+      切片的边界规则只有两条：取左端、不取右端；负索引从 `-1`（最后一个）往左数。`[0:6]` 取下标 0 到 5，`[-3:]` 取最后 3 个字符。多数切片错误都来自把边界往左或往右错移一位。
+  - id: s-quiz-2
+    type: quiz
+    title: 小测二：选出正确的规范化写法
+    questionId: strings-q2
+    revision: 1
+    promptMd: |
+      ```python
+      raw = " Report.TXT "
+      ```
+      需求：得到 `clean` 为 `"report.txt"`，并且 `raw` 保留原值 `" Report.TXT "`。选出正确的写法。
+    options:
+      - id: a
+        textMd: |
+          ```python
+          step1 = raw.strip()
+          clean = step1.lower()
+          ```
+          raw 保留原值
+        explanationMd: 正确。`strip()` 返回去空白的新文本，用 step1 接住；`lower()` 返回小写新文本，用 clean 接住；raw 从头到尾没有被重新赋值，保留原值。
+      - id: b
+        textMd: |
+          ```python
+          raw.strip()
+          raw.lower()
+          clean = raw
+          ```
+        explanationMd: 对应"调用了就等于改好了"的错误理解：两行方法都执行了，但返回的新文本没有名字接住，直接被丢弃；clean 接住的仍是带空格和大写的原 raw。
+      - id: c
+        textMd: |
+          ```python
+          clean = raw.lower()
+          ```
+        explanationMd: 对应"只做一步就够了"的错误理解：只转了小写，没有去掉两端空白，clean 是 `" report.txt "`，不是 `"report.txt"`。规范化的每一步都要做，不能跳过。
+      - id: d
+        textMd: |
+          ```python
+          raw = raw.strip().lower()
+          clean = raw
+          ```
+        explanationMd: clean 的结果虽然对，但 raw 被重新赋值，已经不是原值 `" Report.TXT "`。题目要求保留原值以备核对，直接覆盖原始数据的做法不符合要求。
+    correctOptionId: a
+    explanationMd: |
+      每次处理都返回一个新文本，必须用名字接住才能用；同时题目要求 raw 保留原值，所以不能把处理结果写回 raw。正确做法是每一步都用新名字接收，原数据原样保留。
+  - id: s-recap
+    type: read
+    title: 回忆总结与独立任务
+    bodyMd: |
+      本课要点：
+      1. 下标从 0 开始；切片取左端、不取右端；`[-3:]` 取最后 3 个字符。
+      2. `strip()` 只去两端空白，`lower()` 转小写；两者都返回新文本，原字符串不动。
+      3. 想用处理结果就必须用名字接住；调用了不等于保存了。
+      4. f-string 把值嵌入文本；`{total:.2f}` 只改变显示，不改变 total 本人。
+      口头检查：`raw.strip()` 执行过，为什么 raw 仍可能带空格？（因为 strip 返回的是新文本，raw 本人没变；不接住就丢了。）
+      独立任务（在 PyCharm 完成）：给定 `raw = " Python Basics "` 和 `price = 68`，先规范化得到 clean，再用 f-string 输出 `资料：python basics，应付：68.00 元`，运行后核对 raw 是否保留原值。这里不提供答案代码。

@@ -1,0 +1,147 @@
+schemaVersion: 1
+id: loops
+title: for/while 与循环边界
+goal: 能逐轮追踪“当前项、累计状态和下一次是否继续”，说明循环为何执行这些次数、何时结束，并能定位漏处理、重复处理和死循环风险。
+revision: 1
+status: published
+prerequisites: [conditions]
+steps:
+  - id: s-goal
+    type: read
+    title: 本课目标与需要唤回的能力
+    bodyMd: |
+      本课唤回三项旧能力：01 的"名字绑定与逐行追踪"、02 的"整数运算与重新绑定"、04 的"比较决定执行路径"。while 的条件写法直接复用 04 的比较，不再新讲。
+      学完这一课，你要能做到三件事：对 for 和 while，逐轮说出当前项、累计状态和"下一次是否继续"；说清循环为什么执行这些次数、靠什么结束；看到漏处理、重复处理或停不下来的循环时，能指出是哪一行放错了位置。
+  - id: s-mechanism
+    type: read
+    title: 核心机制：谁每轮执行，谁只执行一次
+    bodyMd: |
+      `for` 依次取得元素，不是天然只遍历下标：循环变量每轮重新绑定为当前项。`range(1, 4)` 依次给出 1、2、3，右边界 4 不包含在内；`range(n)` 同理不包含 n。
+      累计量必须在循环外初始化一次；写在循环体内会被每轮清零。缩进决定执行次数：与 for/while 同级的一行只执行一次，缩进进循环体的一行每轮都执行。
+      `while` 每轮开始前检查条件：为真进入本轮，为假立刻退出。循环体必须有机会让条件变假，否则停不下来。`break` 结束整个循环，`continue` 只跳过本轮余下部分、直接进入下一轮；本课只需识别，不展开新案例。
+
+      ```python
+      count = 0  # 循环外初始化，只执行一次
+      for n in range(1, 4):  # 依次取 1、2、3
+          count = count + 1  # 循环体内，每轮执行
+      print(count)  # 与 for 同级，只执行一次
+      ```
+  - id: s-predict
+    type: reveal
+    title: 主例：先预测，再展开
+    bodyMd: |
+      下面脚本统计 `"EIEE"` 里字母 E 出现了几次。先别往下翻：在纸上写下你预测的输出，再点击展开核对。
+      预测时逐轮问自己：这一轮 ch 是哪个字符？count 的旧值和新值各是多少？`if` 在循环体内还是循环体外？
+
+      ```python
+      text = "EIEE"
+      count = 0
+      for ch in text:
+          if ch == "E":
+              count = count + 1
+      print(count)
+      ```
+    revealLabel: 先预测，再点开展开实际输出
+    revealMd: |
+      实际输出：
+
+      ```
+      3
+      ```
+
+      逐轮追踪：第 1 轮 ch 是 "E"，满足条件，count 从 0 变成 1；第 2 轮 ch 是 "I"，不满足条件，count 保持 1；第 3 轮 ch 是 "E"，count 从 1 变成 2；第 4 轮 ch 是 "E"，count 从 2 变成 3。
+      为什么不是其他结果？`for` 依次取得字符串中的每个字符，不是下标；`if` 缩进在循环体内，所以每轮都判断一次；`print` 与 for 同级，只在循环全部结束后执行一次，显示最终的 count。
+  - id: s-misconception
+    type: reveal
+    title: 误区对照：递减放错位置会怎样
+    bodyMd: |
+      下面用 remaining 从 3 递减解释 while 的结束条件，递减放在了 `print` 之后、仍在循环体内。先在纸上写下你的预测：输出是什么？如果把 `remaining = remaining - 1` 挪到与 while 同级的位置（循环外），会发生什么？再点击展开核对。
+
+      ```python
+      remaining = 3
+      while remaining > 0:
+          print(remaining)
+          remaining = remaining - 1
+      print("done")
+      ```
+    revealLabel: 先预测，再点开展开实际输出
+    revealMd: |
+      实际输出：
+
+      ```
+      3
+      2
+      1
+      done
+      ```
+
+      追踪：第 1 轮 remaining 是 3，打印 3，再减为 2；第 2 轮打印 2，减为 1；第 3 轮打印 1，减为 0；第 4 轮开始前检查 `0 > 0` 为假，退出循环，最后打印 done。
+      两个结论：第一，递减必须放在循环体内、且每轮都能执行到，条件才有机会变假；第二，如果把它挪到与 while 同级的位置，它要等到循环结束才会轮到，而 remaining 永远是 3、条件永远为真，循环等不到结束——这是死循环。死循环不要真的运行验证，在纸上推演即可。
+  - id: s-quiz-1
+    type: quiz
+    title: 小测一：预测输出
+    questionId: loops-q1
+    revision: 1
+    promptMd: |
+      ```python
+      total = 0
+      for i in range(1, 4):
+          total = total + i
+      print(total)
+      ```
+      上面代码最后一行 `print(total)` 的输出是什么？
+    options:
+      - id: a
+        textMd: "`10`"
+        explanationMd: 对应"range 终点包含在内"的错误理解：把 `range(1, 4)` 当成 1、2、3、4 四轮，算出 1+2+3+4=10。range 的右边界不包含在内，这里只有 1、2、3 三轮。
+      - id: b
+        textMd: "`6`"
+        explanationMd: 正确。三轮 i 依次是 1、2、3；total 从 0 开始逐轮累加：0+1=1，1+2=3，3+3=6。total 在循环外初始化，每轮都保留上一轮的结果。
+      - id: c
+        textMd: "`3`"
+        explanationMd: 对应"每轮只保留末项"的错误理解：把 `total = total + i` 当成每轮重新开始，认为 total 最后等于最后一轮的 i=3。total 在循环外初始化，累加不会每轮清零。
+      - id: d
+        textMd: "`4`"
+        explanationMd: 对应"循环次数与累加值混淆"：把"循环 3 次"当成"每次加 1"，再算上初值得到 4。每次加的是当前项 i（1、2、3），不是固定的 1；次数和加数是两回事。
+    correctOptionId: b
+    explanationMd: |
+      逐轮追踪：i 依次是 1、2、3；total 的变化是 0→1→3→6。三个关键点：range(1, 4) 不包含 4；total 在循环外初始化，只执行一次；缩进在循环体内的累加每轮都保留上一轮的结果。
+  - id: s-quiz-2
+    type: quiz
+    title: 小测二：把递减放在正确位置
+    questionId: loops-q2
+    revision: 1
+    promptMd: |
+      ```python
+      remaining = 3
+      while remaining > 0:
+          print(remaining)
+      ```
+      需求：补上一行 `remaining = remaining - 1`，让它依次打印 3、2、1 后结束。选出递减语句的正确位置。
+    options:
+      - id: a
+        textMd: 放在 `print(remaining)` 之前，仍在循环体内
+        explanationMd: 循环能结束，但输出变成 2、1、0：每轮都是先减再打印，打印的永远是递减后的值。位置对了一半，结果被改变了——先显示当前值，再更新。
+      - id: b
+        textMd: 放在 `print(remaining)` 之后，仍在循环体内
+        explanationMd: 正确。每轮先打印当前值 3、2、1，再递减；第 4 轮开始前检查 `0 > 0` 为假后结束。递减在循环体内、每轮都能执行到，条件才有机会变假。
+      - id: c
+        textMd: 放在循环外，与 while 同级
+        explanationMd: 对应"递减写在循环外也能结束"的错误理解：它要等到循环结束才会轮到，而 remaining 永远是 3、条件永远为真，循环等不到结束，是死循环。
+      - id: d
+        textMd: 放在 while 语句之前，循环开始之前
+        explanationMd: 递减只在循环开始前执行了一次（3 变成 2），循环体内 remaining 恒为 2，条件永远为真——无限打印 2。既丢掉了 3，又停不下来。
+    correctOptionId: b
+    explanationMd: |
+      递减必须放在循环体内、且每轮都能执行到，条件才有机会变假；放在打印之后，先显示当前值再更新，所以依次输出 3、2、1，第 4 轮开始前条件为假后结束。放在循环外或循环前，条件永远变不了假。
+  - id: s-recap
+    type: read
+    title: 回忆总结与独立任务
+    bodyMd: |
+      本课要点：
+      1. `for` 依次取得每个元素；`range` 的右边界不包含在内。
+      2. 累计量在循环外初始化；缩进决定某行执行一次还是每轮执行。
+      3. `while` 每轮开始前检查条件；循环体必须有机会让条件变假。
+      4. `break` 结束整个循环，`continue` 只跳过本轮余下部分。
+      口头检查：这个循环靠什么结束，而不是靠什么"应该结束"？
+      独立任务（在 PyCharm 完成）：写一段脚本，统计一段状态码文本中字母 E 的出现次数；分别用"一个 E 也没有""恰好一个 E""多个 E"三种输入运行，并在纸上为零次、一轮、多轮各画一次简短追踪。这里不提供答案代码。

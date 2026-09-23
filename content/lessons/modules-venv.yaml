@@ -1,0 +1,170 @@
+schemaVersion: 1
+id: modules-venv
+title: 模块、入口、虚拟环境与安装依赖
+goal: 把处理函数放进可导入的模块，用 main 加入口保护区分"直接运行"和"被导入"，并确认装包用的解释器就是运行脚本的那个。
+revision: 1
+status: published
+prerequisites:
+  - functions
+  - paths-text
+steps:
+  - id: s-goal
+    type: read
+    title: 本课目标与需要唤回的能力
+    bodyMd: |
+      09 课的函数已经输入输出清楚，14 课的文件流程也通了。现在要解决两个新问题：函数怎么写一次、给多个脚本复用？这个项目到底被哪个 Python 解释器运行，包装到了哪里？
+      学完这一课，你要能做到两件事：把工具函数放进单独的 .py 文件，用 main 加入口保护让"导入"与"直接运行"互不干扰；用 sys.executable 找到当前解释器，装包时用它的 -m pip，不再装错地方。
+  - id: s-mechanism
+    type: read
+    title: 核心机制：导入执行顶层，入口保护分流
+    bodyMd: |
+      模块就是普通的 .py 文件。import 它时会执行全部顶层语句：函数定义会执行，顶层的打印、写文件也一样会执行。所以约定是：把真正的执行流程放进 main 函数，再用 `if __name__ == "__main__":` 包住对 main 的调用。直接运行这个文件时条件成立，走 main；被别的脚本导入时条件不成立，只留下函数定义可用。
+      三类来源要分清：标准库是 Python 自带的（如 pathlib）；本地模块是项目里自己写的 .py；第三方包是 pip 装来的。虚拟环境（.venv）给项目一份独立的解释器和包空间：在 A 环境装的包，B 环境看不见。
+      装包的铁律：必须用"运行脚本的那个解释器"来装。写法是 `<解释器> -m pip install 包名`，装完用 sys.executable 核对路径是不是同一个。不要拿模板路径冒充你的真实路径：去 PyCharm 设置里看项目解释器显示的那一行，再跟 sys.executable 对。
+
+      ```python
+      import sys
+      from pathlib import Path
+
+      exe = Path(sys.executable)
+      print(exe.is_absolute() and exe.exists())
+      ```
+  - id: s-predict
+    type: reveal
+    title: 主例：先预测，再展开
+    bodyMd: |
+      word_tools.py 里顶层打印 "loaded"，main 函数里打印 "report"，main 的调用受入口保护（两个文件放在同一目录）。另一个脚本第一次导入它。先预测：导入时会打印什么？直接运行 word_tools.py 又会打印什么？
+      预测分两问：导入时，word_tools 的顶层语句哪些会执行？直接运行时，`__name__` 是什么，保护条件成立吗？
+
+      ```python
+      # word_tools.py
+      print("loaded")
+
+      def count_words(text):
+          counts = {}
+          for word in text.lower().split():
+              counts[word] = counts.get(word, 0) + 1
+          return counts
+
+      def main():
+          print("report")
+
+      if __name__ == "__main__":
+          main()
+      ```
+
+      ```python
+      # runner.py
+      import word_tools
+      print(word_tools.count_words("SQL sql"))
+      ```
+    revealLabel: 先预测，再点开展开实际输出
+    revealMd: |
+      实际输出（导入时）：
+
+      ```
+      loaded
+      {'sql': 2}
+      ```
+
+      直接运行 word_tools.py 时：
+
+      ```
+      loaded
+      report
+      ```
+
+      解释：导入会执行全部顶层语句，所以 "loaded" 一定打印；`if __name__ == "__main__":` 只在直接运行时成立，被导入时 `__name__` 是模块名，main() 不执行，所以导入时看不到 "report"。函数定义本身不受影响，runner 照样能调用 count_words。
+      为什么不是其他结果？入口保护只控制"受保护的那几行"，不阻止导入，也不屏蔽其他顶层语句；"loaded" 在顶层，不可能被跳过只执行 main。
+  - id: s-misconception
+    type: reveal
+    title: 误区对照：导入即生成报告
+    bodyMd: |
+      改造前，生成报告的调用直接写在 word_tools.py 的顶层，没有入口保护。runner.py 只是想借用 count_words，却在导入的那一刻顺手生成了一份报告。先想一想：为什么会这样？加上入口保护后，导入时还会生成报告吗？
+      对照主例想一想：顶层的 `print("report")` 在导入时为什么躲不掉？入口保护到底保护了哪几行？
+
+      ```python
+      # 改造前（示意）：顶层直接生成报告
+      print("loaded")
+
+      def count_words(text):
+          ...
+
+      print("report")
+      ```
+    revealLabel: 先预测，再点开展开实际输出
+    revealMd: |
+      原因：import 会执行模块的全部顶层语句。`print("report")` 在顶层，导入时和直接运行一样都会执行——这就是"导入即生成报告"的副作用：你只想借函数，却触发了整个执行流程。
+      加上入口保护后（见主例），导入时只执行到函数定义为止：打印 "loaded"，不打印 "report"，不生成报告；直接运行 word_tools.py 时才走 main 生成报告。
+      结论：顶层只放"导入时也该做的事"（如函数定义）；真正的执行流程放进 main 并加上入口保护。两者不冲突：想复用就放心 import，想让直接运行做点事就走 main。
+  - id: s-quiz-1
+    type: quiz
+    title: 小测一：导入时打印什么
+    questionId: modules-venv-q1
+    revision: 1
+    promptMd: |
+      word_tools.py 内容如下。另一个脚本第一次正常导入它（`import word_tools`），不直接运行。导入时屏幕上会出现什么？
+
+      ```python
+      print("loaded")
+
+      def count_words(text):
+          ...
+
+      def main():
+          print("report")
+
+      if __name__ == "__main__":
+          main()
+      ```
+    options:
+      - id: a
+        textMd: 只显示 `loaded`。
+        explanationMd: 正确。导入执行全部顶层语句，"loaded" 在顶层所以打印；main 的调用受入口保护，被导入时不执行，所以没有 "report"。
+      - id: b
+        textMd: 显示 `loaded` 和 `report` 两行。
+        explanationMd: 对应"保护不住 main"的误解。`if __name__ == "__main__":` 在被导入时不成立，main() 不会执行；"report" 只在直接运行时出现。
+      - id: c
+        textMd: 什么都不显示：入口保护阻止了整个文件的导入。
+        explanationMd: 对应"保护阻止导入"的误解。保护只控制受保护的那几行是否执行，不阻止导入；顶层的 "loaded" 和函数定义照常生效，导入完全正常。
+      - id: d
+        textMd: 只显示 `report`。
+        explanationMd: |
+          "loaded" 在顶层，导入时一定执行，不可能跳过它只执行 main；而且 main 受保护，导入时根本不执行，两个方向都错了。
+    correctOptionId: a
+    explanationMd: |
+      导入执行全部顶层语句，但跳过受保护的入口。顶层打印 "loaded" 照常出现；main() 只在直接运行时执行，所以导入时看不到 "report"。保护只控制受保护入口，不屏蔽其他顶层语句。
+  - id: s-quiz-2
+    type: quiz
+    title: 小测二：包装到了错误的解释器
+    questionId: modules-venv-q2
+    revision: 1
+    promptMd: |
+      小李在 PyCharm 里把项目解释器设成了项目目录下的 .venv；但他在一台电脑的系统终端里运行 `pip install requests`，回到 PyCharm 发现还是 import 失败。已经确认 PyCharm 用的确实是项目 .venv。应该怎么做？（本题只判断环境，不要求真的联网安装。）
+    options:
+      - id: a
+        textMd: 用项目 .venv 的 Python 执行 `python -m pip install requests`（这里的 python 指 .venv 的那个），装完用 `sys.executable` 核对路径是同一个解释器。
+        explanationMd: 正确。包必须装到"运行脚本的那个解释器"里；`-m pip` 明确指定用哪个 Python 装；最后核对 sys.executable，确认装包和运行是同一个。
+      - id: b
+        textMd: 在系统终端多运行几次 `pip install requests`，直到 PyCharm 里能 import。
+        explanationMd: 对应"多装几次就好"的误解。系统 pip 永远装到系统 Python 里，运行再多次也不会进入项目 .venv；问题不在次数，在"装给了谁"。
+      - id: c
+        textMd: 把 requests 的代码复制一份放进项目目录，就不用装了。
+        explanationMd: 绕开了环境管理：复制的代码没有版本记录、不会更新依赖，还可能和项目文件混在一起。正确做法是把包交到对的解释器手里，而不是复制代码。
+      - id: d
+        textMd: 重装 PyCharm，或者把项目解释器换成系统 Python。
+        explanationMd: PyCharm 没坏，项目用独立 .venv 是正确做法；换成系统 Python 是把项目迁就到错误的环境，而不是把包装到正确的环境，方向反了。
+    correctOptionId: a
+    explanationMd: |
+      这道题的关键只有一句：装包用的 Python 和运行脚本的 Python 是不是同一个。用项目 .venv 的解释器执行 `-m pip install 包名`，再用 sys.executable 核对路径。不要求真的联网安装，关键是"装给谁"判断对。
+  - id: s-recap
+    type: read
+    title: 回忆总结与独立任务
+    bodyMd: |
+      本课要点：
+      1. import 会执行模块的全部顶层语句；执行流程放进 main，用 `if __name__ == "__main__":` 区分直接运行与被导入。
+      2. 顶层只放导入时也该做的事；入口保护只控制受保护的几行，不阻止导入函数。
+      3. 标准库、本地模块、第三方包是三类不同来源；.venv 给项目独立的解释器和包空间。
+      4. 装包必须用运行脚本的那个解释器：用它的 `-m pip` 安装，再用 sys.executable 核对是同一个。
+      口头检查：我安装包所用的 Python，与实际运行脚本的是不是同一个？
+      独立任务（在 PyCharm 完成）：把已有的计数函数搬进 word_tools.py，加上 main 与入口保护；另写 runner.py 导入并调用它，确认导入时不生成报告，直接运行 word_tools.py 才生成。这里不提供答案代码。

@@ -1,0 +1,198 @@
+schemaVersion: 1
+id: functions
+title: 参数与返回值
+goal: 把一段明确处理逻辑写成输入与返回值清楚的函数，并从调用处追踪到返回处。
+revision: 1
+status: published
+prerequisites: [sets]
+steps:
+  - id: s-goal
+    type: read
+    title: 本课目标与需要唤回的能力
+    bodyMd: |
+      本课需要你已经能追踪短脚本里每个名字的当前值（01），会清洗字符串（03），会用循环和列表逐条处理数据（05、06）。本课唤回这些能力：把一段已经会写的处理逻辑装进函数。
+      学完这一课，你要能做到两件事：把一段明确的处理逻辑写成输入与返回值清楚的函数；从调用那一行追踪进函数体，再跟着 return 回到调用处，说清调用者最终拿到了什么。
+  - id: s-mechanism
+    type: read
+    title: 核心机制：调用时才执行，return 交回结果
+    bodyMd: |
+      执行 def 只是在建立函数：函数体里的代码此时并不执行，要等到被调用时才真正执行。形参是这一次调用的局部名字，它接收调用时传来的值。
+      return 把结果交回调用处，并结束这一次函数执行。print 只负责把结果显示出来，它不能代替 return；如果函数执行结束时没有执行过带值的 return，调用者拿到的就是 None。
+
+      ```python
+      def normalize_name(text):
+          return text.strip().lower()
+
+
+      def clean_names(names):
+          result = []
+          for name in names:
+              result.append(normalize_name(name))
+          return result
+      ```
+  - id: s-predict
+    type: reveal
+    title: 主例：先预测，再展开
+    bodyMd: |
+      下面把标签规范化抽成函数 normalize_name。先别往下翻：在纸上写下你预测的输出，再点击展开核对。
+      预测时逐行追踪：调用发生在哪一行？进入函数后，形参 text 绑定了什么值？return 把什么交回了调用处？为什么不是另一种结果？
+
+      ```python
+      def normalize_name(text):
+          return text.strip().lower()
+
+
+      cleaned = normalize_name(" Python ")
+      print(cleaned)
+      print(normalize_name("API"))
+      ```
+    revealLabel: 先预测，再点开展开实际输出
+    revealMd: |
+      实际输出：
+
+      ```
+      python
+      api
+      ```
+
+      逐行追踪：def 建立函数时不执行任何处理；第 5 行发生调用，把 " Python " 交给形参 text；进入函数体，text.strip().lower() 求出 "python"，return 把它交回调用处，cleaned 绑定 "python"；第 6 行显示 python；第 7 行再次调用，text 重新绑定 "API"，求出 "api" 后交回并直接显示。
+      为什么不是其他结果？return 交回的是"执行那一刻求出的值"，调用者得到的是值本身，而不是函数里的名字。两次调用各自独立，形参每次重新绑定，互不干扰。
+  - id: s-misconception
+    type: reveal
+    title: 误区对照：只 print 的版本交回了什么
+    bodyMd: |
+      只改一个条件：把交回结果的 return 换成只显示的 print。再预测一次：三行输出各是什么？调用者分别拿到了什么？点击展开核对。
+
+      ```python
+      def normalize_name(text):
+          return text.strip().lower()
+
+
+      def show_name(text):
+          print(text.strip().lower())
+
+
+      print(normalize_name(" Python "))
+      got = show_name(" SQL ")
+      print(got)
+      ```
+    revealLabel: 先预测，再点开展开实际输出
+    revealMd: |
+      实际输出：
+
+      ```
+      python
+      sql
+      None
+      ```
+
+      追踪：第一行打印的是 normalize_name 用 return 交回的 "python"；调用 show_name 时，函数体内的 print 把 "sql" 显示在屏幕上，但整个函数没有执行过带值的 return；调用结束，got 只能拿到默认的 None，最后一行显示 None。
+      两个结论：第一，屏幕上出现了 sql，不等于调用者拿到了 sql；第二，没有带值的 return 时，调用结果就是 None。显示是给人看的通道，返回是给调用者用的通道，这是两条不同的通道。
+  - id: s-quiz-1
+    type: quiz
+    title: 小测一：预测输出
+    questionId: functions-q1
+    revision: 1
+    promptMd: |
+      ```python
+      def show_name(text):
+          print(text.strip())
+
+      result = show_name(" SQL ")
+      print(result)
+      ```
+      这段代码的输出依次是什么？
+    options:
+      - id: a
+        textMd: 依次输出 `SQL`、`None`
+        explanationMd: 正确。函数体内的 print 把 "SQL" 显示出来，但函数没有执行过带值的 return；调用结束，result 拿到默认的 None，第二行 print 显示 None。
+      - id: b
+        textMd: 依次输出 `None`、`SQL`
+        explanationMd: 对应"返回与显示顺序颠倒"的错误理解：第一行输出来自函数体内的 print，一定先发生；result 的 None 是调用完成后才有的，不可能先出现。
+      - id: c
+        textMd: 依次输出 `SQL`、`SQL`
+        explanationMd: 对应"显示等于返回"的错误理解：认为屏幕上出现了 SQL，result 就自动变成 SQL。显示是给人看的通道，return 才是把值交给调用者的通道；没有 return 就没有交回。
+      - id: d
+        textMd: 只输出 `SQL`，第二行报错
+        explanationMd: 对应"把 None 当作异常"的错误理解：没有带值的 return 只会让调用者拿到 None，不会触发任何异常。None 是合法的"无结果"约定，不是错误。
+    correctOptionId: a
+    explanationMd: |
+      显示与返回是两条通道：函数体内的 print 负责显示 "SQL"，return 负责把值交给调用者。这个函数没有 return，调用者 result 只能拿到 None。判断"调用者拿到了什么"时，只看 return 交回了什么，不看屏幕上出现了什么。
+  - id: s-quiz-2
+    type: quiz
+    title: 小测二：把 return 放到正确的位置
+    questionId: functions-q2
+    revision: 1
+    promptMd: |
+      ```python
+      def clean_names(names):
+          result = []
+          for name in names:
+              result.append(name.strip().lower())
+              return result
+
+
+      print(clean_names([" A ", "B"]))
+      print(clean_names([]))
+      ```
+      上面代码只处理了第一个名字。要让它对 `[" A ", "B"]` 返回 `["a", "b"]`、对 `[]` 返回 `[]`，应如何修改？
+    options:
+      - id: a
+        textMd: |
+          把 `return result` 移到 for 循环之后（与 for 对齐），其他不动：
+
+          ```python
+          def clean_names(names):
+              result = []
+              for name in names:
+                  result.append(name.strip().lower())
+              return result
+          ```
+        explanationMd: 正确。return 一执行就结束这一次函数调用；放在循环体内，第一轮 append 后就交回，只处理了一个元素。移到循环之后，所有元素处理完才交回；空列表时循环零次，直接交回空列表。
+      - id: b
+        textMd: |
+          在 for 循环之前加一行 `return result`，其他不动：
+
+          ```python
+          def clean_names(names):
+              result = []
+              return result
+              for name in names:
+                  result.append(name.strip().lower())
+          ```
+        explanationMd: 对应"return 位置随意"的错误理解：return 一执行函数就结束，放在循环前会直接交回空列表，循环一次也不执行。return 的位置决定了"处理到哪里才交回"。
+      - id: c
+        textMd: |
+          把循环后的 `return result` 改成不带值的 `return`：
+
+          ```python
+          def clean_names(names):
+              result = []
+              for name in names:
+                  result.append(name.strip().lower())
+              return
+          ```
+        explanationMd: 对应"交回动作本身就够了"的错误理解：不带值的 return 交回的是 None，调用者拿不到清洗好的列表。return 后面跟什么，决定了调用者拿到什么。
+      - id: d
+        textMd: |
+          循环内只处理第一个元素，改成直接取下标：
+
+          ```python
+          def clean_names(names):
+              return [names[0].strip().lower()]
+          ```
+        explanationMd: 对应"把错误结果合法化"的错误理解：这只是把"只处理第一个"的 bug 写成了明面上的需求；对空列表还会因下标越界失败，根本没有修复"处理全部元素"的需求。
+    correctOptionId: a
+    explanationMd: |
+      return 结束的是"这一次函数调用"，不是"本轮循环"。循环内的 return 在第一轮 append 后就交回，所以只处理了一个名字；要处理全部元素，必须让循环跑完再交回。空列表时循环零次，移到循环后的 return 正好交回空列表，两种输入都符合预期。
+  - id: s-recap
+    type: read
+    title: 回忆总结与独立任务
+    bodyMd: |
+      本课要点：
+      1. 执行 def 只建立函数，函数体等调用时才执行；形参接收调用传来的值。
+      2. return 把结果交回调用处并结束这一次执行；没有带值的 return，调用者拿到 None。
+      3. print 只显示，不代替 return；屏幕上出现结果，不等于调用者得到结果。
+      4. 循环内的 return 会提前结束整个调用；要处理全部元素，把 return 放在循环之后。
+      口头检查：调用者真正拿到的是什么，而不是屏幕上出现了什么？
+      独立任务（在 PyCharm 完成）：写出 normalize_name 与 clean_names，用 `[" A ", "B"]` 和 `[]` 分别调用并打印结果，自己核对。这里不提供答案代码。

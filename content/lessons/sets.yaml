@@ -1,0 +1,246 @@
+schemaVersion: 1
+id: sets
+title: 集合、成员判断与去重
+goal: 能区分“出现过”“保序去重结果”和“每项出现次数”三种统计口径，并用集合判重、列表保序、字典计数三容器分工实现去重与频次统计。
+revision: 1
+status: published
+prerequisites: [dicts]
+steps:
+  - id: s-goal
+    type: read
+    title: 本课目标与需要唤回的能力
+    bodyMd: |
+      本课唤回三项旧能力：05 的"for 逐项遍历"、06 的"列表保序与 append"、07 的"字典 get 计数"。本课不新增循环或计数写法，只新增"出现过没有"的判断方式。
+      学完这一课，你要能做到两件事：说清"不同项数量""保序去重结果""每项出现次数"是三种不同的统计口径；需要保序去重时，能分工使用集合、列表、字典三个容器，而不是让一个容器包办一切。
+  - id: s-mechanism
+    type: read
+    title: 核心机制：集合只回答“见过吗”
+    bodyMd: |
+      集合用于成员判断和去重：它只记录"出现过"，不保存可依赖的位置或显示顺序——不要用集合的打印顺序做答案。空集合是 `set()`，`{}` 是空字典；添加重复元素不会增加不同项数。
+      需要保留首次出现顺序时，三个容器分工：集合（seen）只回答"见过吗"，列表（unique）只在第一次见到时追加、负责顺序，字典（counts）每条都计数、负责次数。去重和计数是两件事，不能互相替代。
+
+      ```python
+      tags = {"python", "sql"}
+      tags.add("python")  # 重复添加，不增加项数
+      print(len(tags))  # 2：不同项数量
+      print("sql" in tags)  # True：成员判断
+      empty = set()  # 空集合，不是 {}
+      ```
+  - id: s-predict
+    type: reveal
+    title: 主例：先预测，再展开
+    bodyMd: |
+      下面脚本对 `["python", "sql", "python"]` 做保序去重：集合判重，只在第一次见到时把标签追加到 unique 列表。先别往下翻：在纸上写下你预测的两行输出，再点击展开核对。
+      预测时逐轮问自己：这一轮 tag 见过吗？seen 变了吗？unique 变了吗？
+
+      ```python
+      seen = set()
+      unique = []
+      for tag in ["python", "sql", "python"]:
+          if tag not in seen:
+              seen.add(tag)
+              unique.append(tag)
+      print(unique)
+      print(len(seen))
+      ```
+    revealLabel: 先预测，再点开展开实际输出
+    revealMd: |
+      实际输出：
+
+      ```
+      ['python', 'sql']
+      2
+      ```
+
+      逐轮追踪：第 1 轮 tag 是 "python"，没见过，seen 变成 {"python"}，unique 变成 ["python"]；第 2 轮 tag 是 "sql"，没见过，seen 变成 {"python", "sql"}，unique 变成 ["python", "sql"]；第 3 轮 tag 是 "python"，见过，两个容器都不变。
+      为什么不是其他结果？集合只负责判重，不承担顺序；顺序由列表 unique 保证——只有第一次见到才追加，所以重复项不会挤进输出。`len(seen)` 是"不同项数量"，不是"出现次数"。
+  - id: s-misconception
+    type: reveal
+    title: 误区对照：先去重，还能数出原始次数吗
+    bodyMd: |
+      有人想统计每个标签出现了几次，先用集合去重，再数集合里有几项。先在纸上写下你的预测：`len(dedup)` 是 2，它能回答"python 出现了几次"吗？再点击展开核对。
+
+      ```python
+      raw = ["python", "sql", "python"]
+      dedup = set(raw)
+      print(len(dedup))
+      ```
+    revealLabel: 先预测，再点开展开实际输出
+    revealMd: |
+      实际输出：
+
+      ```
+      2
+      ```
+
+      2 回答的是"有几种不同的标签"，回答不了"python 出现了几次"——去重的那一刻，重复信息就已经丢掉了，后面再怎么数也找不回来。
+      两个结论：第一，"不同项数量"和"出现次数"是两种统计口径，`len(set)` 只能回答前者；第二，想同时要顺序和次数，就用三容器分工：每条有效记录都更新 counts（次数），仅第一次见到才追加 unique（顺序），seen 只判重。口头检查：这一步丢掉了重复信息，后面还能恢复次数吗？
+      另外注意：`" Python "` 和 `"python"` 在集合眼里是两项——先规范化（03 的 strip/lower）再去重，否则大小写不同会被当成不同实体。
+  - id: s-quiz-1
+    type: quiz
+    title: 小测一：预测输出
+    questionId: sets-q1
+    revision: 1
+    promptMd: |
+      ```python
+      tags = {"python", "sql"}
+      tags.add("python")
+      print(len(tags))
+      print("python" in tags)
+      ```
+      上面代码两行 `print` 的输出是什么？（不考集合的打印顺序）
+    options:
+      - id: a
+        textMd: "`2`，`True`"
+        explanationMd: 正确。集合不保存重复项，`add` 一个已存在的元素不会增加长度；python 本来就在集合里，成员判断仍是 True。
+      - id: b
+        textMd: "`3`，`True`"
+        explanationMd: 对应"`add` 总是增加一项"的错误理解：集合只记录"出现过"，重复添加不会多出一项；长度只统计不同项。
+      - id: c
+        textMd: "`2`，`False`"
+        explanationMd: 对应"`add` 会替换原有元素"的错误理解：添加重复元素什么都不改变，python 仍然在集合里，成员判断不会变成 False。
+      - id: d
+        textMd: 程序报错，因为集合不允许重复
+        explanationMd: 集合不允许"存两份"，但允许"添加已存在的项"——后者只是不起作用，不会报错；报错的是把重复当成非法操作。
+    correctOptionId: a
+    explanationMd: |
+      集合的语义是"出现过的不同项"：`add` 重复元素长度不变（仍是 2），原有成员不受影响（python 仍在其中）。成员判断用 `in`，长度用 `len`，顺序不要依赖。
+  - id: s-quiz-2
+    type: quiz
+    title: 小测二：选对保序去重与计数的实现
+    questionId: sets-q2
+    revision: 1
+    promptMd: |
+      需求：对 `["python", "sql", "python"]` 输出保序的唯一标签（python、sql）及每个标签的原始出现次数（python: 2、sql: 1）。选出正确的实现。
+    options:
+      - id: a
+        textMd: |
+          ```python
+          seen = set()
+          unique = []
+          counts = {}
+          for tag in ["python", "sql", "python"]:
+              counts[tag] = counts.get(tag, 0) + 1
+              if tag not in seen:
+                  seen.add(tag)
+                  unique.append(tag)
+          ```
+        explanationMd: 正确。三容器分工：每条都更新 counts（次数），仅第一次见到才追加 unique（顺序），seen 只判重；顺序由列表保证，不依赖集合。
+      - id: b
+        textMd: |
+          ```python
+          seen = set(["python", "sql", "python"])
+          counts = {}
+          for tag in seen:
+              counts[tag] = counts.get(tag, 0) + 1
+          ```
+        explanationMd: 对应"先 set 再计数"的错误理解：去重后每项只剩一次，算出的次数全是 1，原始频次已经丢了；而且集合的遍历顺序不可依赖，保序也无从谈起。
+      - id: c
+        textMd: |
+          ```python
+          unique = set()
+          counts = {}
+          for tag in ["python", "sql", "python"]:
+              counts[tag] = counts.get(tag, 0) + 1
+              unique.add(tag)
+          ```
+        explanationMd: 对应"用集合承担顺序"的错误理解：次数算对了，但 unique 是集合，不保存可依赖的顺序，无法保证输出时 python 在前、sql 在后；保序必须用列表。
+      - id: d
+        textMd: |
+          ```python
+          seen = set()
+          unique = []
+          counts = {}
+          for tag in ["python", "sql", "python"]:
+              if tag not in seen:
+                  seen.add(tag)
+                  unique.append(tag)
+                  counts[tag] = counts.get(tag, 0) + 1
+          ```
+        explanationMd: 对应"计数藏进首次分支"的错误理解：重复项进不了分支就没被计数，python 只计 1 次；每条有效记录都要计数，更新 counts 不能放在"首次见到"分支内。
+    correctOptionId: a
+    explanationMd: |
+      保序去重的固定分工：seen（集合）只判重，unique（列表）只在第一次见到时追加、负责顺序，counts（字典）每条都计数、负责次数。去重不能代替计数，集合不能承担顺序，计数也不能只计第一次。
+  - id: s-recap
+    type: read
+    title: 回忆总结与独立任务
+    bodyMd: |
+      本课要点：
+      1. 集合用于成员判断和去重；空集合是 `set()`，不是 `{}`；重复添加不增加项数。
+      2. 不要用集合的打印顺序做答案；"不同项数量"不等于"出现次数"。
+      3. 保序去重三容器分工：seen 判重、unique 保序、counts 计数。
+      口头检查：这一步丢掉了重复信息，后面还能恢复次数吗？
+      独立任务（在 PyCharm 完成）：给一段文本标签，先规范化（strip/lower）再去重，输出保序的唯一标签；另起一段代码输出每个标签的出现次数，对照两者回答的是否是同一个问题。这里不提供答案代码。
+  - id: s-practice
+    type: practice
+    title: 模块实践 P2：标签去重与频次统计
+    taskMd: |
+      任务：处理给定的文本标签记录，输出有效记录数、不同标签数、忽略记录数，以及每个标签的原始出现次数。输入是列表，不读文件，不定义函数。
+
+      固定输入：
+
+      ```python
+      raw_tags = [
+          " Python ", "SQL", "python", "",
+          "API", " sql ", "   ", "API",
+      ]
+      ```
+
+      规则锁定：先 strip 再 lower；规范化后为空的文本忽略，其余每条都计数；唯一标签按首次有效出现顺序输出，不能按字母排序、不能依赖集合遍历顺序；重复记录不从频次中删除。
+
+      普通样例的完整输出：
+
+      ```text
+      有效记录：6
+      不同标签：3
+      忽略记录：2
+      python: 2
+      sql: 2
+      api: 2
+      ```
+    hintMd: |
+      1. 先拆任务：只对每条做清洗（strip→lower）并打印清洗结果，确认 `" Python "` 变成 `"python"`、`"   "` 变成 `""`。
+      2. 再加两个计数器：清洗后为空则忽略数加一，否则有效数加一。
+      3. 复用 07 的字典频次：`counts[tag] = counts.get(tag, 0) + 1`——注意更新 counts 不能放在"首次见到"分支内，每条有效记录都要计数。
+      4. 最后加入保序去重：seen（集合）只回答"见过吗"，unique（列表）只在第一次见到时追加。三者职责：seen 判重、unique 保序、counts 计数。
+      相关旧课：03（strip/lower）、05（循环）、06（列表 append）、07（get 计数）、本课（set 判重）。
+    solutionMd: |
+      参考解法（只用截至本模块已教过的能力；不用 Counter、sorted、推导式、函数封装）：
+
+      ```python
+      raw_tags = [
+          " Python ", "SQL", "python", "",
+          "API", " sql ", "   ", "API",
+      ]
+
+      seen = set()    # 已经出现过的规范标签，只判重
+      unique = []     # 首次出现顺序，只保序
+      counts = {}     # 每个标签的原始次数，只计数
+      valid = 0       # 有效记录数
+      ignored = 0     # 忽略记录数
+
+      for raw in raw_tags:
+          tag = raw.strip().lower()
+          if tag == "":
+              ignored = ignored + 1
+              continue
+          valid = valid + 1
+          counts[tag] = counts.get(tag, 0) + 1
+          if tag not in seen:
+              seen.add(tag)
+              unique.append(tag)
+
+      print(f"有效记录：{valid}")
+      print(f"不同标签：{len(unique)}")
+      print(f"忽略记录：{ignored}")
+      for tag in unique:
+          print(f"{tag}: {counts[tag]}")
+      ```
+
+      分块说明：清洗与忽略判断（复用 03、04）→ 有效计数与字典频次（复用 05、07），每条有效记录都计数 → 首次见到才追加 unique（三容器分工）。`continue` 只跳过本轮余下部分，不是结束循环。
+    acceptance:
+      - 普通样例：有效 6、不同 3、忽略 2，明细顺序 python、sql、api，各 2 次
+      - 输入 `[]`：有效、不同、忽略三项数量均为 0，无标签明细
+      - 输入 `["", "   "]`：有效 0、不同 0、忽略 2
+      - 输入 `["API", " api ", "api"]`：有效 3、不同 1，api 次数为 3
+      - 输入 `["SQL", "Python"]`：明细顺序为 sql、python，不重新排序

@@ -1,0 +1,144 @@
+schemaVersion: 1
+id: alias-copy
+title: 可变性、别名、浅拷贝
+goal: 在修改列表、字典或函数参数之前，判断哪些名字共享同一对象、一次复制只复制了哪一层。
+revision: 1
+status: published
+prerequisites: [scope-defaults]
+steps:
+  - id: s-goal
+    type: read
+    title: 本课目标与需要唤回的能力
+    bodyMd: |
+      本课需要你已经见过"同一个默认列表被多次调用复用"（10），并知道 append 会修改列表本身（06）。上一课的共享只是特例：只要两个名字指向同一个可变对象，修改就会互相看见。
+      学完这一课，你要能做到两件事：在修改一个列表或字典之前，说清还有哪些名字会看到这次修改；做一次 copy 后，说清复制的是哪一层、哪一层仍在共享。
+  - id: s-mechanism
+    type: read
+    title: 核心机制：绑定不复制，修改分两种
+    bodyMd: |
+      赋值只是把名字绑定到对象，不自动复制内容；两个名字可以指向同一个可变对象。修改分两种：原地修改（改字典字段、append）动的是对象本身，所有指向它的名字都看得到；重新绑定（`view = {...}`）只是把这一个名字的标签贴到新对象上，其他名字不动。
+      函数参数得到的是同一对象的局部绑定，不是自动复制，所以函数内 append 会影响调用者。浅拷贝只建立新的外层，内部对象仍可能共享。`==` 比较内容是否相等，`is` 判断是否为同一个对象。
+
+      ```python
+      record = {"name": "python", "minutes": 30}
+      view = record
+      view["minutes"] = 45
+      view = {"name": "sql"}
+      print(record["minutes"], view["name"])
+      ```
+  - id: s-predict
+    type: reveal
+    title: 主例：先预测，再展开
+    bodyMd: |
+      同一条记录给了两个名字，然后改其中一个名字的字段。先别往下翻：在纸上写下你预测的两行输出，再点击展开核对。
+      追踪时问自己：`view = record` 这一步复制了什么？`view["minutes"] = 45` 改的是对象还是名字？
+
+      ```python
+      record = {"name": "python", "minutes": 30}
+      view = record
+      view["minutes"] = 45
+      print(record["minutes"])
+      print(view["minutes"])
+      ```
+    revealLabel: 先预测，再点开展开实际输出
+    revealMd: |
+      实际输出：
+
+      ```
+      45
+      45
+      ```
+
+      逐行追踪：第 2 行 `view = record` 只是多贴了一个名字标签，两个名字指向同一个字典，没有复制任何内容；第 3 行 `view["minutes"] = 45` 修改的是这个字典本身，不是某个名字；所以第 4 行从 record 读到的也是 45。
+      为什么不是 30、45？"换名字"不等于"复制内容"。判断影响范围时，先数这是第几个对象，再问"这次改的是对象还是名字"——改对象，所有指向它的名字都受影响。
+  - id: s-misconception
+    type: reveal
+    title: 误区对照：改字段与重新绑定新字典
+    bodyMd: |
+      只改一个条件：把"改字段"换成"把 view 重新绑定到一个新字典"。先在纸上写下你预测的两行输出，再点击展开核对。
+
+      ```python
+      record = {"name": "python", "minutes": 30}
+      view = record
+      view = {"name": "sql", "minutes": 20}
+      print(record["name"])
+      print(view["name"])
+      ```
+    revealLabel: 先预测，再点开展开实际输出
+    revealMd: |
+      实际输出：
+
+      ```
+      python
+      sql
+      ```
+
+      追踪：前两行与主例相同，两个名字起初指向同一字典；第 3 行是重新绑定：把 view 的标签从旧字典上撕下来，贴到一个新字典上；旧字典本身没被碰过，record 仍指向它，所以 record["name"] 还是 python。
+      结论：原地修改影响所有指向该对象的名字；重新绑定只改变这一个名字的指向。看到 `view["minutes"] = 45` 和 `view = {...}`，要当成两种完全不同的操作：前者改对象，后者换标签。
+  - id: s-quiz-1
+    type: quiz
+    title: 小测一：别名与原地修改
+    questionId: alias-copy-q1
+    revision: 1
+    promptMd: |
+      ```python
+      a = ["sql"]
+      b = a
+      b.append("api")
+      ```
+      执行后，a 与 b 的内容，以及 `a is b` 的结果是？
+    options:
+      - id: a
+        textMd: a 与 b 都是 `["sql", "api"]`，`a is b` 为 True
+        explanationMd: 正确。`b = a` 只绑定同一个列表，没有复制；append 是原地修改，改的是这个对象本身，两个名字都看得到；is 判断是否为同一个对象，这里是 True。
+      - id: b
+        textMd: a 是 `["sql"]`，b 是 `["sql", "api"]`
+        explanationMd: 对应"换名字自动复制"的错误理解：认为 `b = a` 时内容被复制了一份。赋值只绑定名字、不复制对象，a 与 b 指向同一个列表，不存在"各改各的"两份内容。
+      - id: c
+        textMd: a 与 b 都是 `["sql", "api"]`，`a is b` 为 False
+        explanationMd: 对应"内容相等就是同一对象"的混淆：内容相等用 `==` 判断，是否为同一对象用 `is` 判断。这里只有一个列表对象，两个名字都指向它，is 应为 True。
+      - id: d
+        textMd: a 是 `["sql"]`，b 是 `["sql", "api"]`，`a is b` 为 False
+        explanationMd: 对应"方法调用自带隔离"的错误理解：认为 `b.append` 只改 b 自己的"一份"。append 改的是对象本身；既然只有一个对象，就不存在"只改 b 不改 a"的可能。
+    correctOptionId: a
+    explanationMd: |
+      先数对象：只有一个列表。`b = a` 没有新建对象，append 改的是这个对象本身，所以两个名字看到的内容一起变。`is` 问的是"是不是同一个对象"，`==` 才问"内容是否相等"——这是两把不同的尺子。
+  - id: s-quiz-2
+    type: quiz
+    title: 小测二：浅拷贝复制了哪一层
+    questionId: alias-copy-q2
+    revision: 1
+    promptMd: |
+      ```python
+      a = [[1], [2]]
+      b = a.copy()
+      b[0].append(9)
+      ```
+      执行后，a 的内容，以及 `a is b` 的结果是？
+    options:
+      - id: a
+        textMd: a 是 `[[1, 9], [2]]`，`a is b` 为 False
+        explanationMd: 正确。copy 只建立了新的外层列表，内层的两个小列表仍是原来那两个；`b[0].append(9)` 改的是共享的第一个内层列表，所以 a[0] 也变了；但 a 与 b 是两个不同的外层列表，is 为 False。
+      - id: b
+        textMd: a 是 `[[1], [2]]`，`a is b` 为 False
+        explanationMd: 对应"copy 等于完全独立"的错误理解：认为复制后内外层全不相干。浅拷贝只复制外层这一层，内层对象仍是共享的；改内层时，a 也会看到变化。
+      - id: c
+        textMd: a 是 `[[1, 9], [2]]`，`a is b` 为 True
+        explanationMd: 对应"内层共享推出外层同一"的错误理解：内层确实共享，但 a 与 b 是 copy 建出的两个外层列表，不再是同一个对象；is 判断的是外层这两个对象是否为同一个。
+      - id: d
+        textMd: a 是 `[[1], [2]]`，`a is b` 为 True
+        explanationMd: 对应"copy 只是换名字"的错误理解：copy 确实建了一个新的外层列表，a 与 b 不是同一对象；同时内层共享，`b[0].append(9)` 会让 a 的第一项也变成 [1, 9]。
+    correctOptionId: a
+    explanationMd: |
+      copy 回答的是"复制了哪一层"：外层是新的（`a is b` 为 False），内层仍是原来那两个（`b[0].append(9)` 改到的也是 `a[0]`）。动手改之前先问一句：我要改的是外层还是内层？这一层到底有没有被复制？
+  - id: s-recap
+    type: read
+    title: 回忆总结与独立任务
+    bodyMd: |
+      本课要点：
+      1. 赋值绑定名字，不复制对象；两个名字可以指向同一个可变对象。
+      2. 原地修改（改字段、append）影响所有指向该对象的名字；重新绑定只改变这一个名字的指向。
+      3. 函数参数得到的是同一对象的局部绑定，不是自动复制；函数内 append 会影响调用者。
+      4. 浅拷贝只建新外层，内层仍可能共享；`is` 判断是否同一对象，`==` 比较内容。
+      口头检查：我复制的是哪一层，这次实际改的是哪一层？
+      独立任务（在 PyCharm 完成）：写一个清洗函数，接收记录字典、返回新建的规范记录，处理前后打印原记录确认未被修改；再对 `[[1], [2]]` 做一次浅拷贝实验。这里不提供答案代码。

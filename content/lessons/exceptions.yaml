@@ -1,0 +1,203 @@
+schemaVersion: 1
+id: exceptions
+title: 读 traceback 与处理异常
+goal: 根据错误信息找到真正失败的操作，把"输入不符合约定"和"程序写错了"分开，只对预期的输入问题做局部处理。
+revision: 1
+status: published
+prerequisites:
+  - types-and-none
+  - loops
+  - functions
+steps:
+  - id: s-goal
+    type: read
+    title: 本课目标与需要唤回的能力
+    bodyMd: |
+      02 课里 `int("bad")` 失败时只看了 ValueError 的名字和含义，处理方法留到了现在；05 课的循环给了"逐项处理"，09 课的函数给了"把转换装进函数"。本课唤回这两项能力。
+      学完这一课，你要能做到两件事：看到报错先读 traceback 末尾定异常类型，再找到自己代码里真正失败的那一行；逐项转换 ["0", "bad", "5"] 时，非法项记下原文本并跳过、合法的 0 保留，而且只把转换操作包进 try。
+      这也是以后带着定位结论、而不是只贴整段报错去问人的基础。
+  - id: s-mechanism
+    type: read
+    title: 核心机制：先定类型，再找失败行
+    bodyMd: |
+      traceback 是解释器留下的事故路线图：从上到下展示调用路径，最后一行给出异常类型和一句话说明。定位顺序不能反：先看最后一行确定是什么错，再回到中间找到自己代码里实际执行失败的那一行；最上面的调用行只说明"怎么走过来的"，不是失败位置。
+      异常一旦发生，try 里面失败行之后的语句不再执行，直接跳到匹配的 except。except 后面写什么类型就只接住什么类型，没写明的会继续向上报。所以只捕获你已经想好怎么处理的异常。`except ValueError as exc` 是把接住的异常交给名字 exc，本课只用到看类型的最小读法。
+      结合旧例认名字：名字没定义过是 NameError，类型对不上操作是 TypeError，字典缺键是 KeyError，文本转不成数是 ValueError。认出名字是第一步，怎么处理看下面的规则。
+  - id: s-predict
+    type: reveal
+    title: 主例：先预测，再展开
+    bodyMd: |
+      02 课的 `int("bad")` 现在被装进函数再调用。先别往下翻：在纸上写下你的预测——这段代码会打印什么？如果没有 try/except，traceback 的最后一行会是什么？
+      预测时先想：try 包住了哪几行？如果转换失败，程序会跳到哪里？except 后面写的 ValueError 会不会接住这次失败？
+
+      ```python
+      def parse_count(raw):
+          return int(raw)
+
+      try:
+          parse_count("bad")
+      except ValueError as exc:
+          print(type(exc).__name__)
+      ```
+    revealLabel: 先预测，再点开展开实际输出
+    revealMd: |
+      实际输出：
+
+      ```
+      ValueError
+      ```
+
+      解读：如果没有 try/except，解释器会打印 traceback，大致是这样（行号为示意）：
+
+      ```
+      Traceback (most recent call last):
+        File "demo.py", line 5, in <module>
+          parse_count("bad")
+        File "demo.py", line 2, in parse_count
+          return int(raw)
+      ValueError: invalid literal for int() with base 10: 'bad'
+      ```
+
+      读法分三步：第一步先看最后一行，异常类型是 ValueError，说明失败的是"转换"这个操作；第二步在中间找到自己代码里真正执行转换的那一行——`return int(raw)`，这就是失败行；第三步才看调用行 `parse_count("bad")`，它只说明程序是怎么走过来的。
+      为什么不是其他答案？失败的不是"调用函数"这个动作，而是函数内部的转换；文件名只是路径的一部分，与失败原因无关。定位清楚后，就可以只包住转换操作做针对性处理。
+  - id: s-misconception
+    type: reveal
+    title: 误区对照：try 越大越安全吗
+    bodyMd: |
+      有人觉得"try 越大越安全"，把整个循环包进一次 try。下面的代码想转换 ["0", "bad", "5"]，先预测它会打印什么，再点开展开看实际结果和原因。
+      预测时逐轮追踪：第一轮 raw 是什么，results 变成什么？第二轮失败后，try 里剩下的语句还会执行吗，for 循环还继续吗？
+
+      ```python
+      results = []
+      try:
+          for raw in ["0", "bad", "5"]:
+              results.append(int(raw))
+      except ValueError:
+          pass
+      print(results)
+      ```
+    revealLabel: 先预测，再点开展开实际输出
+    revealMd: |
+      实际输出：
+
+      ```
+      [0]
+      ```
+
+      追踪：第一轮 raw 是 "0"，转换成功，results 变成 [0]；第二轮 int("bad") 失败，try 里剩下的语句（包括后面所有轮次）都不再执行，直接跳到 except；第三轮的 "5" 根本没机会被处理。
+      两个结论：第一，异常发生后，try 内失败行之后的语句不会"稍后再试"，当轮和后面的轮次一起被跳过；第二，"大 try + pass"看似处理了错误，实际吞掉了合法的 5。正确做法是把 try 缩小到只包住转换操作，让每一项独立接受处理：合法的 0 正常加入，非法项记下原文本后跳过。
+  - id: s-quiz-1
+    type: quiz
+    title: 小测一：读 traceback 定位
+    questionId: exceptions-q1
+    revision: 1
+    promptMd: |
+      ```python
+      def parse_count(raw):
+          return int(raw)
+
+      count = parse_count("bad")
+      print("数量：", count)
+      ```
+
+      运行时打印了这样的 traceback（行号为示意）：
+
+      ```
+      Traceback (most recent call last):
+        File "demo.py", line 5, in <module>
+          count = parse_count("bad")
+        File "demo.py", line 2, in parse_count
+          return int(raw)
+      ValueError: invalid literal for int() with base 10: 'bad'
+      ```
+
+      要修好它，第一步应该定位到哪里？
+    options:
+      - id: a
+        textMd: 先看最后一行确定是 ValueError（转换失败），再定位到 parse_count 函数里执行 `int(raw)` 的那一行。
+        explanationMd: 正确。读 traceback 的顺序是"先看末尾定异常类型，再找实际失败的行"。末尾是 ValueError，说明失败的是转换操作；真正执行转换的是函数内的 `int(raw)`，调用行只是"怎么走过来的"路径。
+      - id: b
+        textMd: 错误出现在第 5 行调用 parse_count 的地方，应该去改调用处的 print。
+        explanationMd: 对应"调用行就是失败行"的误解。第 5 行只是调用路径，真正失败的是第 2 行的转换；改 print 解决不了转换失败，定位就错了方向。
+      - id: c
+        textMd: traceback 第一行写着文件名 demo.py，说明文件放错了位置，换个目录再运行。
+        explanationMd: 对应"看文件名定原因"的误解。文件名只是告诉你代码在哪个文件的哪一行，失败原因是最后一行的 ValueError，与文件放在哪个目录无关。
+      - id: d
+        textMd: Python 解释器坏了，重装一次 Python。
+        explanationMd: ValueError 恰恰是解释器正常工作的证明：它准确报告了"这段文本转不成整数"。这是输入不符合约定，不是解释器坏了，重装解决不了问题。
+    correctOptionId: a
+    explanationMd: |
+      读 traceback 的顺序不能反：先看最后一行定异常类型（这里是 ValueError，失败的是转换），再找到自己代码里实际执行转换的那一行（函数内的 `int(raw)`）。调用行只说明程序怎么走过来的，文件名只是路径的一部分，都不是失败原因。
+  - id: s-quiz-2
+    type: quiz
+    title: 小测二：选对逐项转换的写法
+    questionId: exceptions-q2
+    revision: 1
+    promptMd: |
+      需求：逐项转换 `["0", "bad", "5"]`。规则：非法项记下原文本并跳过；合法的 0 要保留。选出符合规则的实现。
+    options:
+      - id: a
+        textMd: |
+          ```python
+          results = []
+          bad_items = []
+          for raw in ["0", "bad", "5"]:
+              try:
+                  results.append(int(raw))
+              except ValueError:
+                  bad_items.append(raw)
+          ```
+          结果：results 是 `[0, 5]`，bad_items 是 `["bad"]`。
+        explanationMd: 正确。try 只包住转换操作，每一项独立处理：合法的 0 正常加入，非法项记下原文本 "bad" 后跳过，不影响后面的 "5"。
+      - id: b
+        textMd: |
+          ```python
+          results = []
+          for raw in ["0", "bad", "5"]:
+              try:
+                  results.append(int(raw))
+              except ValueError:
+                  results.append(0)
+          ```
+          结果：results 是 `[0, 0, 5]`。
+        explanationMd: 对应"所有失败统一返回 0 就方便"的误解。bad 被变成了 0，和合法的 0 混在一起，后面再也分不清哪个是真数据；规则要求非法项记原文本跳过，不是填 0 顶替。
+      - id: c
+        textMd: |
+          ```python
+          results = []
+          try:
+              for raw in ["0", "bad", "5"]:
+                  results.append(int(raw))
+          except ValueError:
+              pass
+          ```
+          结果：results 是 `[0]`。
+        explanationMd: 对应"try 越大越安全"的误解。bad 失败后，try 内剩余的全部轮次都不再执行，合法的 "5" 被一起吞掉，结果里少了 5。
+      - id: d
+        textMd: |
+          ```python
+          results = []
+          for raw in ["0", "bad", "5"]:
+              try:
+                  value = int(raw)
+              except ValueError:
+                  continue
+              if value:
+                  results.append(value)
+          ```
+          结果：results 是 `[5]`。
+        explanationMd: 对应"0 就是失败"的误解。转换本身包得很对，但后面的 `if value:` 把合法的 0 当成了失败过滤掉；规则明确要求合法零保留，不能用真假判断代替"是否转换成功"。
+    correctOptionId: a
+    explanationMd: |
+      规则有三条：只包住转换操作、非法项记原文本跳过、合法零保留。只有 a 三条都满足：逐项独立 try/except，except 里记下 raw，转换成功就追加（包括 0）。b 把非法变成了 0，c 吞掉了后面的 5，d 把合法的 0 过滤掉了。
+  - id: s-recap
+    type: read
+    title: 回忆总结与独立任务
+    bodyMd: |
+      本课要点：
+      1. 读 traceback 先看最后一行定异常类型，再找自己代码里实际失败的行；调用行只是路径。
+      2. 异常发生后，try 内失败行之后的语句不再执行；except 只接住写明的类型。
+      3. 只捕获已经想好怎么处理的异常；转换场景下 try 只包住转换操作，逐项独立处理。
+      4. 非法项记原文本跳过，合法的 0 要保留；这是输入不符合约定，不是程序写错了。
+      口头检查：这是输入不符合约定，还是程序本身写错了？你准备怎么向别人描述失败位置？
+      独立任务（在 PyCharm 完成）：写一个逐项转换 ["12", "x", "0", "7"] 的脚本，非法项记下原文本并跳过，打印合法结果列表和非法原文本列表，运行后自己核对。这里不提供答案代码。

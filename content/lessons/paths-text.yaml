@@ -1,0 +1,163 @@
+schemaVersion: 1
+id: paths-text
+title: pathlib、UTF-8 文本及 with
+goal: 把文本文件正确接入处理流程：分清"路径"与"内容"，用显式 UTF-8 和 with 读写，并在读完算完之后才打开输出文件写报告。
+revision: 1
+status: published
+prerequisites:
+  - strings
+  - lists-tuples
+  - exceptions
+steps:
+  - id: s-goal
+    type: read
+    title: 本课目标与需要唤回的能力
+    bodyMd: |
+      03 课把原始文本规范化，06 课把文本按空白切成词，13 课认出了 FileNotFoundError 和 UnicodeDecodeError 的名字。本课把这三样接起来：从磁盘读进文本，再把报告写回去。
+      学完这一课，你要能做到两件事：说清楚一段代码从哪里读文件、用 显式 UTF-8 解释它；写报告时先把输入读完、把报告字符串算好，最后才用 w 打开输出文件写入，不提前截断已有报告。
+  - id: s-mechanism
+    type: read
+    title: 核心机制：路径不是内容，打开才碰磁盘
+    bodyMd: |
+      Path 表示"路径"这个地址，不是文件内容本身。`from pathlib import Path` 是从标准库取出路径工具（模块机制 15 课再讲）。构造 Path、拼接路径都只是摆弄地址；真正触碰磁盘的是 open、read、write。
+      相对路径是相对于"进程当前工作目录"的，不会自动相对于脚本文件。拿不准时打印 `Path.cwd()` 核对，再确认文件是不是真的在那里。想稳定指向"脚本旁边的文件"，用 `Path(__file__).parent / 文件名`：它表示这个脚本自己所在的文件夹，不随工作目录变化。
+      读写文本要显式声明编码：`encoding="utf-8"`，读和写都写上。`with` 负责在代码块结束时关掉文件，不用你记着 close。
+      最关键的一条写入纪律：`w` 打开一个已存在的文件会立刻截断内容，不是等到第一次 write。所以顺序必须是：先读完输入、生成完整的报告字符串，确认成功之后，才用 `w` 打开输出文件写入。
+
+      ```python
+      from pathlib import Path  # 路径工具
+
+      path = Path("input.txt")  # 只是地址
+      print(path.is_absolute())
+      print(path.name)
+      ```
+  - id: s-predict
+    type: reveal
+    title: 主例：先预测，再展开
+    bodyMd: |
+      练习目录里有一个 input.txt，内容是两行词。下面的代码先定位文件，再用 with 和 UTF-8 读出内容，接上 03、06 课学过的 lower、split 和计数。先预测它打印哪两个数，再点开展开核对。
+      预测时注意：`Path(__file__).parent` 拼出的是哪个目录？with 块结束时文件会怎样？lower 和 split 各产生什么？
+
+      ```python
+      from pathlib import Path
+
+      # 脚本所在目录，不随工作目录变
+      path = Path(__file__).parent / "input.txt"
+      with path.open(encoding="utf-8") as f:
+          text = f.read()
+      words = text.lower().split()
+      print(len(words))
+      print(words.count("python"))
+      ```
+    revealLabel: 先预测，再点开展开实际输出
+    revealMd: |
+      实际输出：
+
+      ```
+      4
+      2
+      ```
+
+      逐行追踪：`Path(__file__).parent / "input.txt"` 拼出脚本所在目录下的 input.txt，不随工作目录变化；`with ... open(encoding="utf-8")` 打开并声明编码，块结束自动关闭；`f.read()` 一次读出全文；`text.lower().split()` 复用 03、06 课：转小写后按空白切成 ["python", "python", "sql", "api"]；最后打印总数 4 和 python 的出现次数 2。
+      为什么是 4 不是别的数？split 按空白切分，两行共四个词；lower 让 "Python" 和 "python" 算成同一个词。如果文件不存在，这里会报 FileNotFoundError；如果编码声明不对，会报 UnicodeDecodeError——都是 13 课认过的名字。
+  - id: s-misconception
+    type: reveal
+    title: 误区对照：先开输出会过早截断
+    bodyMd: |
+      report.txt 里已经有一份旧报告。现在输入文件读取失败，下面的"先占好输出位置"写法会发生什么？先预测旧报告还在不在，再点开展开看实际结果和原因。
+      注意 `open("w")` 出现的位置：它在 try 里面、读输入之前——截断发生在前还是后？
+
+      ```python
+      import tempfile
+      from pathlib import Path
+      with tempfile.TemporaryDirectory() as tmp:
+          out = Path(tmp) / "report.txt"
+          out.write_text("旧报告")  # 准备旧报告
+          try:  # 错误顺序：先开输出，再读输入
+              with out.open("w", encoding="utf-8") as f:
+                  text = Path(tmp, "nope.txt").read_text(encoding="utf-8")
+                  f.write(text)
+          except FileNotFoundError:
+              print("读取失败")
+          print("旧报告还在：", out.read_text(encoding="utf-8") == "旧报告")
+      ```
+    revealLabel: 先预测，再点开展开实际输出
+    revealMd: |
+      实际输出：
+
+      ```
+      读取失败
+      旧报告还在： False
+      ```
+
+      追踪：`out.open("w", ...)` 执行的瞬间，旧报告就被截断清空了；随后读 input.txt 失败，except 接住 FileNotFoundError，但旧内容已经没了，新内容又没写进去。
+      结论：w 的截断发生在"打开"那一刻，不是 write 那一刻。正确的纪律是：先成功读取输入、生成完整的报告字符串，确认成功之后，才用 `w` 打开输出文件写入。读失败时根本走不到打开输出那一步，旧报告碰都不碰。
+  - id: s-quiz-1
+    type: quiz
+    title: 小测一：先核对工作目录
+    questionId: paths-text-q1
+    revision: 1
+    promptMd: |
+      脚本 `clean.py` 放在项目目录 `project/` 里，里面写着 `Path("input.txt")`；但运行时的当前工作目录是 `project/` 的上一级，而 input.txt 在 `project/` 里。运行时报了 FileNotFoundError。第一步应该做什么？
+    options:
+      - id: a
+        textMd: 先打印 `Path.cwd()` 核对当前工作目录，确认 input.txt 到底在哪个目录下；这是路径问题，先查位置。
+        explanationMd: 正确。相对路径相对的是进程 cwd，不是脚本位置；cwd 是上一级而文件在 project/ 里，所以找不到。先核对位置，再决定用脚本目录定位还是切换目录。
+      - id: b
+        textMd: "`Path(\"input.txt\")` 会自动在脚本所在目录找，所以把 input.txt 放到 clean.py 旁边就行了。"
+        explanationMd: 对应"脚本在哪就从哪找"的误解。相对路径相对的是 cwd；文件本来就在脚本旁边，问题恰恰是 cwd 不在脚本旁边。再放一遍文件解决不了"相对谁"的问题。
+      - id: c
+        textMd: FileNotFoundError 是编码问题，把 encoding 改成 "gbk" 再试一次。
+        explanationMd: 对应"把路径错误当编码错误"的误解。找不到文件发生在打开之前；编码只在成功打开后解释内容时才起作用，编码问题报的是 UnicodeDecodeError，不是 FileNotFoundError。
+      - id: d
+        textMd: 改成 `w` 模式打开，文件不存在会自动创建。
+        explanationMd: w 确实会创建空文件，但需求是读取已有的输入内容；这样做等于用空内容掩盖了位置错误，读到的不是真正的输入，还多了一个空文件。
+    correctOptionId: a
+    explanationMd: |
+      这是路径问题不是编码问题：先核对工作目录与文件位置。`Path("input.txt")` 相对的是 cwd；想稳定指向脚本旁的文件，用 `Path(__file__).parent / "input.txt"`。确认"文件到底在哪里"之后，再谈怎么读。
+  - id: s-quiz-2
+    type: quiz
+    title: 小测二：选对写入顺序
+    questionId: paths-text-q2
+    revision: 1
+    promptMd: |
+      report.txt 里已有一份上次的正确报告。需求：如果这次 input.txt 读取失败，必须保留旧报告。选出符合要求的写入顺序。
+    options:
+      - id: a
+        textMd: |
+          ```python
+          with Path("input.txt").open(encoding="utf-8") as f:
+              text = f.read()
+          report = "\n".join(lines) + "\n"
+          with Path("report.txt").open("w", encoding="utf-8") as f:
+              f.write(report)
+          ```
+        explanationMd: 正确。读取、计算全部成功后，才用 w 打开输出；读失败时根本走不到打开输出那一步，旧报告原样保留。
+      - id: b
+        textMd: |
+          ```python
+          with Path("report.txt").open("w", encoding="utf-8") as f:
+              with Path("input.txt").open(encoding="utf-8") as g:
+                  f.write(g.read())
+          ```
+        explanationMd: 对应"先占好输出位置"的误解。w 打开的瞬间就截断了旧报告；随后读输入一旦失败，旧报告已经丢失，新内容又没写进去，两头落空。
+      - id: c
+        textMd: 用追加模式 `a` 打开 report.txt，这样旧报告不会被截断。
+        explanationMd: a 不截断，但会把新报告接到旧报告后面，旧报告不再是"原样保留"；而且读失败时文件仍被打开过。需求是保留旧报告原样，不是拼接两份。
+      - id: d
+        textMd: 在 except 里写一份空报告，保证 report.txt 永远是这次运行的结果。
+        explanationMd: 需求恰恰相反：读失败时保留旧报告。用空报告覆盖等于拿失败的结果替换上一次正确的结果，旧报告丢了，还伪装成"最新"。
+    correctOptionId: a
+    explanationMd: |
+      w 的截断发生在"打开"那一刻。所以纪律是：先成功读取并生成报告字符串，再 w 打开输出写入。读失败时直接返回，旧报告碰都不碰。记住顺序口诀：读完、算完，最后才开写。
+  - id: s-recap
+    type: read
+    title: 回忆总结与独立任务
+    bodyMd: |
+      本课要点：
+      1. Path 是路径不是内容；相对路径相对进程 cwd，拿不准就打印 Path.cwd() 核对。
+      2. 想稳定指向脚本旁的文件，用 Path(__file__).parent / 文件名。
+      3. 读写都显式写 encoding="utf-8"；with 负责关闭文件。
+      4. w 打开即截断：先读完输入、生成报告字符串，确认成功后再打开输出写。
+      口头检查：当前这一步只是表示路径，还是已经触碰了磁盘内容？
+      独立任务（在 PyCharm 完成）：在练习目录放一个 input.txt，用 with 和 UTF-8 读出，统计词数并生成报告字符串，确认无误后再 w 写入 report.txt；然后故意把 input.txt 改名，重新运行，确认旧 report.txt 还在。这里不提供答案代码。

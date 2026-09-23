@@ -1,0 +1,347 @@
+schemaVersion: 1
+id: tests-boundaries
+title: 断言、边界用例与可测试函数
+goal: 先用独立手算写清正确结果，再用正常与边界样本检验函数；把纯逻辑与文件读写分开，让每一部分都能被检查。
+revision: 1
+status: published
+prerequisites:
+  - comprehensions-sort
+  - exceptions
+  - modules-venv
+steps:
+  - id: s-goal
+    type: read
+    title: 本课目标与需要唤回的能力
+    bodyMd: |
+      12 课的 P3 留下一条约定：minutes 为 0 的非空名称记录要保留；13 课让我们能定位失败，15 课让函数可导入、可明确运行。本课把"怎么证明程序对了"补上。
+      学完这一课，你要能做到两件事：为一个函数写出"输入—独立手算的预期—实际比较"的断言，并选出能抓住特定错误的边界用例；把计数、格式化这类纯逻辑与文件读写分开，分别验证。
+  - id: s-mechanism
+    type: read
+    title: 核心机制：预期必须独立手算
+    bodyMd: |
+      一个测试由三部分组成：输入、预期结果、拿实际结果与预期比较。预期的来源必须是"照着需求独立手算"，不能把待测函数再调一遍当预期——自己证明自己，错了也看不出来。
+      `assert 条件` 在条件不成立时抛 AssertionError：失败的意思是"约定没有满足"，不是"测试写错了"。要注意：assert 可能在优化模式下被移除，所以它不能代替运行时的输入校验（比如 13 课的 try/except）。
+      更好测的函数长什么样？纯逻辑（算词频、拼报告字符串）不碰文件，测起来只需要给字符串、看返回值；文件读写（读 input.txt、写 report.txt）单独走一遍。两部分分开，失败时立刻知道是哪一边的问题。
+
+      ```python
+      assert 1 + 1 == 2  # 约定成立：安静通过
+      try:
+          assert 1 + 1 == 3, "约定：1+1 等于 2"
+      except AssertionError as exc:
+          print(type(exc).__name__)
+      print("done")
+      ```
+  - id: s-predict
+    type: reveal
+    title: 主例：先预测，再展开
+    bodyMd: |
+      下面用预先手算的词频写断言。先别往下翻：在纸上写下你的预测——这段代码打印什么？`expected` 为什么必须手写，而不能调一次 count_words 算出来？
+      预测时回答：assert 比较的两边分别是什么？如果把 expected 改成调 count_words 算出来，这个测试还有效吗？
+
+      ```python
+      def count_words(text):
+          counts = {}
+          for word in text.lower().split():
+              counts[word] = counts.get(word, 0) + 1
+          return counts
+
+      expected = {"python": 2}  # 独立手算
+      result = count_words("Python python")
+      assert result == expected
+      print("ok")
+      ```
+    revealLabel: 先预测，再点开展开实际输出
+    revealMd: |
+      实际输出：
+
+      ```
+      ok
+      ```
+
+      解释：测试的三部分都在——输入是 "Python python"，预期是手算的 {"python": 2}，比较由 assert 完成。条件成立，所以安静通过，打印 ok。
+      为什么预期必须独立手算？如果写成 `expected = count_words("Python python")`，就是拿待测函数自己算预期：函数把 python 算成 3，预期也会跟着变成 3，assert 永远通过，测不出任何错误。手算的预期来自需求本身，和实现无关，才能当裁判。
+  - id: s-misconception
+    type: reveal
+    title: 误区对照：例子跑通不等于全对
+    bodyMd: |
+      下面的清洗函数在普通样本上全过，但它藏着一个约定违反。先预测：它对 `{"name": "CLI", "minutes": 0}` 返回什么？对 `{"name": "A", "minutes": 10}` 又返回什么？再点开展开。
+      预测时逐行看：`> 0` 把谁拦在了外面？普通样本为什么看不出问题？
+
+      ```python
+      def keep_names(records):
+          kept = []
+          for record in records:
+              if record["minutes"] > 0:
+                  kept.append(record["name"])
+          return kept
+
+      zero = [{"name": "CLI", "minutes": 0}]
+      print(keep_names(zero))
+      normal = [{"name": "A", "minutes": 10}]
+      print(keep_names(normal))
+      ```
+    revealLabel: 先预测，再点开展开实际输出
+    revealMd: |
+      实际输出：
+
+      ```
+      []
+      ['A']
+      ```
+
+      追踪：minutes 为 0 的 CLI 没通过 `> 0`，被丢掉了；普通样本 A 照常通过。P3 的约定是"零分钟合法"，这个实现违反了约定，但只测普通样本永远发现不了。
+      结论："例子跑通"只证明了测过的那几个输入。要抓住特定错误，就得为每条关键约定准备边界用例：这里就是含 `{"name": "CLI", "minutes": 0}` 且预期保留的测试。普通正数样本和空列表样本都抓不住这个错误。
+  - id: s-quiz-1
+    type: quiz
+    title: 小测一：选出能抓住错误的测试
+    questionId: tests-boundaries-q1
+    revision: 1
+    promptMd: |
+      P3 约定：minutes 为 0 的非空名称记录要保留。但下面的错误实现要求 `minutes > 0`：
+
+      ```python
+      def keep_names(records):
+          kept = []
+          for record in records:
+              if record["minutes"] > 0:
+                  kept.append(record["name"])
+          return kept
+      ```
+
+      选出能暴露这个错误的测试。
+    options:
+      - id: a
+        textMd: |
+          ```python
+          assert keep_names([{"name": "CLI", "minutes": 0}]) == ["CLI"]
+          ```
+        explanationMd: 正确。这是零值边界用例：约定要求保留，错误实现会返回 []，assert 失败，正好抓住"把合法 0 当无效"的错误。
+      - id: b
+        textMd: |
+          ```python
+          assert keep_names([{"name": "A", "minutes": 10}]) == ["A"]
+          ```
+        explanationMd: 普通正数样本：错误实现对它同样返回 ["A"]，assert 通过，抓不住这个错误。通过不代表约定被满足。
+      - id: c
+        textMd: |
+          ```python
+          assert keep_names([]) == []
+          ```
+        explanationMd: 空列表样本：错误实现返回 []，assert 通过。这个用例只覆盖"空输入"，和 minutes 是否为 0 无关，抓不住这个错误。
+      - id: d
+        textMd: |
+          ```python
+          assert keep_names([{"name": "", "minutes": 5}]) == []
+          ```
+        explanationMd: 这个用例测的是"空名称过滤"，而错误实现根本不过滤名称，只看 minutes；它返回 [""]，失败的原因和题目要抓的零值错误不是一回事。
+    correctOptionId: a
+    explanationMd: |
+      测试要抓哪种错误，用例就要把那种错误逼出来。只有含 `{"name": "CLI", "minutes": 0}` 且预期保留的测试，能让"要求 minutes > 0"的错误实现失败；普通正数和空列表样本对它都视而不见。
+  - id: s-quiz-2
+    type: quiz
+    title: 小测二：选出手写完整预期的断言
+    questionId: tests-boundaries-q2
+    revision: 1
+    promptMd: |
+      对 `"Python python"` 的词频函数 `count_words` 写断言。选出正确的做法。
+    options:
+      - id: a
+        textMd: |
+          ```python
+          assert count_words("Python python") == {"python": 2}
+          ```
+        explanationMd: |
+          正确。预期 `{"python": 2}` 是照着"先 lower 再按空白切分"的规则独立手算的，和实现无关；完整比较整个字典，多一个键、少一个键、次数不对都会失败。
+      - id: b
+        textMd: |
+          ```python
+          print(count_words("Python python"))
+          ```
+          肉眼看输出对了就行。
+        explanationMd: 只打印不比较：这次你看对了，下次改坏代码时不会自动失败。测试的价值在于"比较"这一步能重复执行，不是看一次。
+      - id: c
+        textMd: |
+          ```python
+          assert count_words("Python python")["python"] == 2
+          ```
+        explanationMd: 只查一个键：如果函数多算出一个 `"python,"` 键（标点没处理），这个断言照样通过。完整比较整个字典，才能抓住多余项和缺失项。
+      - id: d
+        textMd: |
+          ```python
+          expected = count_words("Python python")
+          assert count_words("Python python") == expected
+          ```
+        explanationMd: 对应"自己证明自己"的误解。expected 是用待测函数自己算出来的：函数错了，预期跟着错，assert 永远通过，等于没测。
+    correctOptionId: a
+    explanationMd: |
+      好的断言有两条：预期独立手算（不用待测函数算），比较要完整（整个字典比，不只查一个键、不只打印）。a 两条都满足；b 缺了比较，c 比得不完整，d 的预期是自己算的。
+  - id: s-recap
+    type: read
+    title: 回忆总结与独立任务
+    bodyMd: |
+      本课要点：
+      1. 测试 = 输入 + 独立手算的预期 + 实际比较；预期不能拿待测函数自己算。
+      2. assert 失败表示约定未满足；assert 可被优化模式移除，不能代替运行时校验。
+      3. 正常样本通过不等于全对：为每条关键约定（零值、空输入、失败路径）各准备一个边界用例。
+      4. 纯逻辑与文件读写分离，失败时能立刻定位是哪一边。
+      口头检查：这个测试要抓哪一种错误？如果代码真错了，它会失败吗？
+      独立任务（在 PyCharm 完成）：给已有的 count_words 加三个断言：空文本、"Python, python"（标点不删）、同一输入调两次结果相同；运行并确认全过。这里不提供答案代码。
+  - id: s-practice
+    type: practice
+    title: 模块实践 P4：读取文本，生成可验证的词频报告
+    taskMd: |
+      ## 任务
+      在 PyCharm 的专用练习目录里读取 input.txt，生成 report.txt。计数与报告格式化必须是可独立导入、独立测试的纯函数（不读写文件、不打印）。
+
+      ## 词的定义（锁定）
+      对文本先 lower，再用无参数 split 按空白切分。连续空白不产生额外词项。标点不删除："python," 与 "python" 是不同词。不做中文分词：没有空白的一段中文作为一个词项。
+
+      ## 报告规则（锁定）
+      报告显示总词数和不同词数；词条按次数降序，次数相同按首次出现顺序。输出为 UTF-8 文本，行间一个换行，末尾也保留换行。空文件产生合法的两行零值报告，而不是报错。
+
+      ## 固定输入与输出
+      input.txt（第三行为空行）：
+
+      ```
+      Python python
+      SQL api SQL
+
+      API python
+      ```
+
+      report.txt 必须逐字节等于：
+
+      ```
+      总词数：7
+      不同词数：3
+      python: 3
+      sql: 2
+      api: 2
+      ```
+
+      ## 代码职责
+      - word_tools.py :: `count_words(text)`：接收字符串，返回词频字典；无有效词返回 `{}`；不读写文件、不打印。
+      - word_tools.py :: `count_key(item)`：接收 items() 产生的二元项，返回次数，供 sorted 用。
+      - word_tools.py :: `format_report(counts)`：返回完整报告字符串；不修改 counts；用循环累计总数，再构造各行并 join。
+      - main.py :: `main()`：定位路径、读取、调用处理、写入、给出预期错误的提示；用入口保护运行。
+      - check_examples.py：导入纯函数，用明确输入与手工预期做 assert；不依赖自动测试框架。
+
+      ## 失败策略
+      - input.txt 不存在：明确提示输入不存在；不生成成功提示；保留已有 report.txt。
+      - 不是有效 UTF-8：明确提示编码问题；不能静默忽略坏字符；保留已有报告。
+      - 其他预期读文件错误：报告读取失败，不开始写输出。
+      - 写 report.txt 失败：明确提示写入失败，不报成功；V1 不承诺原子写。
+      - 函数内部出现 NameError、逻辑性 TypeError 等程序错误：不伪装成空文件或零词报告，应暴露并修复。
+      - FileNotFoundError 与 OSError 在同一捕获链时，具体情况写在通用情况之前；文件异常只处理环境失败，不吞算法错误。
+
+      ## 三条文件路径的验证方法（专用测试目录）
+      1. 缺失输入：把 input.txt 移走或改名后运行 main。
+      2. 无效 UTF-8：复制下面两行预制坏样本（不用学二进制 API）：
+      ```python
+      from pathlib import Path
+      Path("input.txt").write_bytes(b"\xff\xfe\xff bad bytes")
+      ```
+      3. 写入失败：先把 report.txt 建成同名目录（`mkdir report.txt`），再运行 main；验证完删掉该目录。
+    hintMd: |
+      1. 先脱离磁盘写 count_words：复用 P2 的"旧次数→加一→写回"，在小脚本里用 "Python python" 试，结果应该是 {"python": 2}。
+      2. 用固定字典写 format_report：复用 12 课的 sorted(key=count_key, reverse=True) 与 14 课的 "\n".join；先对手算的期望字符串写 assert。
+      3. 两个函数都对了，才接文件读取：with + encoding="utf-8" 读 input.txt，把文本交给 count_words。
+      4. 加写入与针对性错误处理：只有读取、计数、格式化全部成功，才 w 打开 report.txt；缺失输入、坏编码、写入失败各给明确提示，互不吞并。
+      5. 拆模块和入口：纯函数进 word_tools.py，流程进 main.py 的 main() 并加入口保护；确认 import word_tools 没有任何输出。
+      6. 运行断言与文件样例：在专用测试目录按任务说明验证缺失输入、坏 UTF-8、写入失败三条路径，再跑一遍下面的 12 条固定内容测试。
+    solutionMd: |
+      按阶段自己写，不要一次抄完。每个阶段先想清楚数据怎么流动，再看代码。
+
+      ### 阶段一：count_words——数据先流动起来
+      输入 "Python python" → lower → split 得到 ["python", "python"] → 逐词"旧次数→加一→写回" → {"python": 2}。字典天然按首次出现记顺序，后面排序用得上。
+
+      ```python
+      def count_words(text):
+          counts = {}
+          for word in text.lower().split():
+              counts[word] = counts.get(word, 0) + 1
+          return counts
+      ```
+
+      ### 阶段二：count_key + format_report——排好序、拼成字符串
+      key 只返回次数，reverse=True 降序；次数相同靠 sorted 的稳定性保持首次出现顺序。先循环累计总数，再逐行拼，最后 join。
+
+      ```python
+      def count_key(item):
+          name, count = item
+          return count
+      ```
+
+      ```python
+      def format_report(counts):
+          total = 0
+          for count in counts.values():
+              total += count
+          lines = ["总词数：" + str(total)]
+          lines.append("不同词数：" + str(len(counts)))
+          ordered = sorted(counts.items(), key=count_key, reverse=True)
+          for name, count in ordered:
+              lines.append(name + ": " + str(count))
+          return "\n".join(lines) + "\n"
+      ```
+
+      ### 阶段三：main——把文件接进来，错误各走各的门
+      流程：定位路径 → 读（with/UTF-8）→ 计数 → 格式化 → 全部成功后才 w 写。文件异常只处理环境失败，不包算法。（读分支 13 行稍超 12 行：三种文件失败各走各的 except，这是本课要练的针对性处理，不宜再压缩。）
+
+      ```python
+      def main(input_path="input.txt", output_path="report.txt"):
+          try:
+              with open(input_path, encoding="utf-8") as f:
+                  text = f.read()
+          except FileNotFoundError:
+              print("输入文件不存在：" + input_path)
+              return
+          except UnicodeDecodeError:
+              print("输入文件不是有效的 UTF-8 编码，已保留旧报告。")
+              return
+          except OSError:
+              print("读取输入文件失败，已保留旧报告。")
+              return
+      ```
+
+      ```python
+          report = format_report(count_words(text))  # 读成功后才到这里
+          try:
+              with open(output_path, "w", encoding="utf-8") as f:
+                  f.write(report)
+          except OSError:
+              print("写入报告失败：输出文件未更新。")
+              return
+          print("报告已生成：" + output_path)
+
+      if __name__ == "__main__":
+          main()
+      ```
+
+      ### 阶段四：check_examples——示例断言，照清单补全
+      ```python
+      from word_tools import count_words, format_report
+
+      assert count_words("Python python") == {"python": 2}
+      assert count_words("") == {}
+      assert format_report({}) == "总词数：0\n不同词数：0\n"
+      print("示例断言通过")
+      ```
+      其余固定内容测试照下面的验收清单逐条补全；补完后，再拿一段自己新手算的文本加一条断言——这才是"独立完成的证据"。
+    acceptance:
+      - '固定输入 input.txt 生成的 report.txt 与题目给出的 7 行逐字节一致（总词数 7、不同词数 3、python:3、sql:2、api:2，末尾换行）。'
+      - 'count_words("") 返回 {}；format_report({}) 返回 "总词数：0\n不同词数：0\n"。'
+      - '仅空白 " \n\t " 与空文本得到同样的零值报告。'
+      - 'count_words("Python") == {"python": 1}，报告总数 1、不同词数 1。'
+      - 'count_words("API api API") == {"api": 3}，报告只有一个明细词条。'
+      - 'count_words("sql api") 的明细顺序是 sql、api（首次出现顺序），不是字母顺序。'
+      - 'count_words("数据 data 数据") == {"数据": 2, "data": 1}，总数 3，UTF-8 正常显示。'
+      - 'count_words("Python, python") == {"python,": 1, "python": 1}，标点不删除。'
+      - '同一输入连续调用 count_words 两次，结果相同，不跨调用累积。'
+      - 'format_report 调用前后，counts 的内容与插入顺序都不被修改。'
+      - '直接 import word_tools：无控制台输出，不生成或修改任何报告文件。'
+      - 'main 入口连续运行两次：两次 report.txt 逐字节相同，没有把新报告追加在旧报告后。'
+      - '专用测试目录：删除 input.txt 后运行，提示输入不存在，不生成输出、不报成功，旧报告保留。'
+      - '专用测试目录：input.txt 为无效 UTF-8 时运行，明确提示编码问题，旧报告保留。'
+      - '专用测试目录：report.txt 预先建成同名目录后运行，明确提示写入失败，不报成功。'
+      - 'check_examples.py 里固定内容测试全部用 assert 写出并通过；另加一条自己新手算文本的断言。'

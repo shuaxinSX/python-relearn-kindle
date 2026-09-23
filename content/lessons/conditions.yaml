@@ -1,0 +1,237 @@
+schemaVersion: 1
+id: conditions
+title: 布尔表达式与条件分支
+goal: 把一条有边界的业务规则写成可预测的唯一执行路径，并正确区分缺失与为假。
+revision: 1
+status: published
+prerequisites:
+  - types-and-none
+  - strings
+steps:
+  - id: s-goal
+    type: read
+    title: 本课目标与需要唤回的能力
+    bodyMd: |
+      前两课学会了判断值的类型、把文本规范成统一格式。本课唤回它们，并回答一个新问题：规则里有"达到多少""是不是会员""是不是缺失"这样的条件时，代码怎样只走一条确定的路。
+      学完这一课，你要能做到：把"费用达到 100 元或是会员就免服务费"这样的规则写成 `if/elif/else`；能说出某组输入会走哪个分支、输出什么；能区分"缺失"和"为假"，用 `is None` 判断缺失。
+  - id: s-mechanism
+    type: read
+    title: 核心机制：比较先算出判断结果，缩进决定分支归属
+    bodyMd: |
+      比较运算先算出一个判断结果：`total >= 100` 的结果是 True 或 False，这本身就是一个值（上一课讲过，真假值是一种类型）。
+      缩进决定哪行属于哪个分支：缩进相同的连续几行是同一分支的身体，缩进一回到原位，分支就结束了。
+      `if/elif/else` 是同一条链：从上往下找第一个成立的条件，只执行那一个分支，其余全部跳过。两个独立的 `if` 则是两次独立的判断，可能都执行，也可能都不执行。
+      多个条件用 `and`（都成立）、`or`（至少一个成立）、`not`（反转）组合；复合条件优先加括号，先看清分组再看含义。`and` 有短路：前一个不成立，后一个就不再判断——比如"先确认字符串非空，再取它的首字符"，空字符串不会走到取首字符那一步。
+
+      ```python
+      total = 60
+      if total >= 100:
+          print("免服务费")
+      elif total >= 50:
+          print("优惠")
+      else:
+          print("收 8 元")
+      ```
+  - id: s-predict
+    type: reveal
+    title: 主例：先预测，再展开
+    bodyMd: |
+      下面代码判断"费用达到 100 元或是会员"时免服务费。先别往下翻：在纸上写下你预测的输出，再点击展开核对。
+      预测时逐行问自己：括号里的条件整体是 True 还是 False？进了第一分支后，elif 还会再判断吗？
+
+      ```python
+      fee = 120
+      is_member = True
+      if (fee >= 100) or is_member:
+          print("免服务费")
+      elif fee >= 50:
+          print("优惠")
+      ```
+    revealLabel: 先预测，再点开展开实际输出
+    revealMd: |
+      实际输出：
+
+      ```
+      免服务费
+      ```
+
+      逐行追踪：`(fee >= 100)` 先算出 True，`True or is_member` 整体为 True，进入第一分支输出"免服务费"；同一条链只执行第一个成立的分支，`elif` 不再判断。
+      为什么不是其他结果？`elif` 不是"再给一次机会"，而是"前面都没成立才看我"。如果把 `elif` 改成第二个独立的 `if`，120 会同时满足两个条件，就会输出两行——那是另一回事，误区对照里看。
+  - id: s-misconception
+    type: reveal
+    title: 误区对照：elif 链与两个独立 if
+    bodyMd: |
+      有人认为"`elif` 和再写一个 `if` 是一回事"。下面这段代码只改一个条件：把 `elif` 换成第二个独立的 `if`。
+      先在纸上写下你的预测：输出几行？分别是哪几行？再点击展开核对实际输出和解释。
+
+      ```python
+      total = 100
+      if total >= 100:
+          print("免服务费")
+      if total >= 50:
+          print("优惠")
+      ```
+    revealLabel: 先预测，再点开展开实际输出
+    revealMd: |
+      实际输出：
+
+      ```
+      免服务费
+      优惠
+      ```
+
+      逐行追踪：两个 `if` 各做一次独立判断，100 两个条件都满足，所以两行都输出。
+      一个结论：想"只走一条路"就用 `if/elif/else` 链；想"每条都检查"才用多个独立 `if`。两者长得像，含义完全不同，选错就会多输出或少输出。
+  - id: s-quiz-1
+    type: quiz
+    title: 小测一：判断分支输出
+    questionId: conditions-q1
+    revision: 1
+    promptMd: |
+      ```python
+      total = 100
+      if total >= 100:
+          print("免服务费")
+      elif total >= 50:
+          print("优惠")
+      ```
+      这段代码的输出是什么？
+    options:
+      - id: a
+        textMd: 只输出"免服务费"
+        explanationMd: 正确。`total >= 100` 成立，进入第一分支；同一条链只执行第一个成立的分支，`elif` 不再判断，所以"优惠"不会输出。
+      - id: b
+        textMd: 输出"免服务费"和"优惠"两行
+        explanationMd: 对应"`if/elif` 会把所有满足条件的分支都执行"的错误理解。100 确实同时满足两个条件，但 `elif` 链最多执行一个分支；要输出两行，得写成两个独立的 `if`。
+      - id: c
+        textMd: 只输出"优惠"
+        explanationMd: 对应"`elif` 会覆盖前面的判断"的错误理解：认为后面满足的条件会取代前面的选择。分支链从上往下只选第一个成立的，不会回头改选"最后一个满足的"。
+      - id: d
+        textMd: 什么都不输出
+        explanationMd: 对应"把 `>=` 读反"的错误理解：100 满足 `total >= 100`，第一分支的条件是成立的，不可能两个分支都不执行。
+    correctOptionId: a
+    explanationMd: |
+      `if/elif` 是同一条链：从上往下找第一个成立的条件，只执行那一个分支。100 让第一个条件成立，所以只输出"免服务费"，`elif` 不再判断。想让两个条件各判断一次，就写成两个独立的 `if`。
+  - id: s-quiz-2
+    type: quiz
+    title: 小测二：只在缺失时显示"未填写"
+    questionId: conditions-q2
+    revision: 1
+    promptMd: |
+      `count` 有两种可能的值：`0` 表示明确填写了 0 份，`None` 表示根本没填。需求：只有"根本没填"时才显示"未填写"；明确填写 0 时不显示。选出正确的条件写法。
+    options:
+      - id: a
+        textMd: |
+          ```python
+          if count is None:
+              print("未填写")
+          ```
+        explanationMd: 正确。`is None` 专门判断"是不是缺失标记"：count 为 None 时成立，为 0 时不成立。0 是明确的数值，不是缺失。
+      - id: b
+        textMd: |
+          ```python
+          if not count:
+              print("未填写")
+          ```
+        explanationMd: 对应"为假就等于缺失"的错误理解：`not count` 在 count 为 0 和为 None 时都成立（0 和 None 都"为假"），所以明确填写 0 也会被误判成没填。"为假"不等于"缺失"。
+      - id: c
+        textMd: |
+          ```python
+          if count == 0:
+              print("未填写")
+          ```
+        explanationMd: 对应"把 0 当成缺失"的错误理解：这正好写反了——它在"明确填写 0"时显示未填写，在真正缺失（None）时反而不显示。0 是有值，不是缺失。
+      - id: d
+        textMd: 不管 count 是什么，都直接显示"未填写"
+        explanationMd: 对应"不区分情况"的错误理解：根本没有做判断，两种情况输出一样，需求里的"只有没填才显示"完全没有落实。
+    correctOptionId: a
+    explanationMd: |
+      `is None` 只认缺失标记；`not count` 把 0、空字符串、None 等所有"为假"的值一视同仁，会把明确填写的 0 误伤成没填。为假不等于缺失，这是第 02 课"零和缺失分开表达"的延续。
+  - id: s-recap
+    type: read
+    title: 回忆总结与独立任务
+    bodyMd: |
+      本课要点：
+      1. 比较先算出 True/False；缩进决定哪几行属于哪个分支。
+      2. `if/elif/else` 是同一条链，最多执行一个分支；多个独立 `if` 各判断一次。
+      3. `and`/`or`/`not` 组合条件，复合条件加括号；`and` 短路。
+      4. 0、空字符串、`None` 都可能为假，但含义不同；判断缺失用 `is None`。
+      口头检查：为什么不能把所有 `if` 都机械地改成 `elif`？（独立 `if` 是"每条都检查"，`elif` 链是"只走第一条成立的路"；机械替换会改变哪些分支被执行。）
+      独立任务（在 PyCharm 完成）：用 fee 和 is_member 写出"费用达到 100 或是会员则免服务费，否则收 8 元"的判断，分别用 (120, False)、(60, True)、(60, False) 三组输入运行，核对每组走了哪个分支。这里不提供答案代码。
+  - id: s-practice
+    type: practice
+    title: 模块实践 P1：生成资料费用说明
+    taskMd: |
+      ## 任务
+      从给定变量生成三行费用说明。数据写在脚本开头，不要求交互输入、批量处理、函数或文件读写。
+
+      ## 数据
+      | 输入名 | 值 | 约束 |
+      |---|---|---|
+      | raw_title | `" Python Basics "` | 字符串，可能为空白 |
+      | raw_count | `"3"` | 保证是可由 int 转换的整数文本，可以为零或负数 |
+      | unit_price | `20` | 固定整数元单价，本实践不修改 |
+      | is_member | `False` | 真正的 bool，不使用字符串 `"False"` |
+
+      ## 规则
+      1. 名称去两端空白并转小写；数量转整数。
+      2. 规范名称为空或数量小于 0 时，只输出"输入无效"。
+      3. 其余情况先计算资料费用（数量 × 单价）；零份不收任何费用。
+      4. 正数量且资料费用达到 100 元，或者是会员，服务费为 0；其他情况服务费为 8 元。
+      5. 金额只用小整数元计算，`.2f` 仅用于输出显示，本实践不讲真实货币精度方案。
+
+      ## 输出
+      普通样例的完整输出：
+      ```text
+      资料：python basics
+      份数：3
+      应付：68.00 元
+      ```
+    hintMd: |
+      ## 分级提示
+      1. 先列出规范化后的变量：`name = raw_title.strip().lower()`，`count = int(raw_count)`。想想：哪一步可能产生"无效"？
+      2. 画出三条路径：输入无效 → 只输出"输入无效"；零份 → 应付 0.00；其余 → 计算费用再看服务费。
+      3. 在"其余"里再细分：什么时候服务费为 0？（正数量且资料费用达到 100，或者是会员。）什么时候是 8 元？
+      4. 最后格式化：`f"应付：{total:.2f} 元"`。相关旧课：01 保证变量计算顺序；02 转换数量；03 规范文本与格式化；04 决定路径和阈值。
+    solutionMd: |
+      ## 参考解法
+      只使用截至本模块已教的能力（`if/elif/else`，不使用三元表达式，不把布尔值乘进金额）。
+
+      **第一步：规范化与转换**
+      ```python
+      name = raw_title.strip().lower()
+      count = int(raw_count)
+      ```
+
+      **第二步：判断路径，计算应付**
+      ```python
+      if name == "" or count < 0:
+          print("输入无效")
+      else:
+          materials = count * unit_price
+          if count == 0:
+              total = 0
+          elif materials >= 100 or is_member:
+              total = materials
+          else:
+              total = materials + 8
+      ```
+
+      **第三步：输出三行说明**（这三行缩进 4 格，写在 else 的身体里，接在计算后面）
+      ```python
+          print("资料：" + name)
+          print("份数：" + str(count))
+          print(f"应付：{total:.2f} 元")
+      ```
+
+      **为什么这样写**：无效判断最先做，一旦无效就只输出"输入无效"；零份单独处理，保证不收任何费用；免服务费条件用 `or` 连接"费用达到 100"和"会员"两条规则；其余情况才加 8 元。`total:.2f` 只负责显示两位小数，不改变 total 本人。
+
+      **迁移检查**：把免服务费阈值从 100 改成 80，只修改 `materials >= 100` 这一处；随之改变的是"raw_count 改为 4"这条验收——80 元达到新阈值，应付会从 88.00 变成 80.00。不要增加"支持任意坏输入"或真正收款功能。
+    acceptance:
+      - 无变化：输出三行说明，应付为 68.00 元。
+      - raw_count 改为 "4"：应付为 88.00 元（80 元未达到免服务费阈值，加 8 元）。
+      - raw_count 改为 "5"：应付为 100.00 元（达到 100 元边界，免服务费）。
+      - is_member 改为 True：应付为 60.00 元（会员免服务费）。
+      - raw_count 改为 "0"：仍为合法的三行说明，应付为 0.00 元，不加 8 元。
+      - raw_count 改为 "-1"：只输出"输入无效"。
+      - raw_title 改为全空格：只输出"输入无效"。

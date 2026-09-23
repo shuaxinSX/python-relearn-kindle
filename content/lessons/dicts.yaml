@@ -1,0 +1,161 @@
+schemaVersion: 1
+id: dicts
+title: 字典读取、更新与遍历
+goal: 用“键对应值”的方式保存记录，或在循环中正确累计每个标签的出现次数；分清 get 不插入键、in 查键、items 拆包。
+revision: 1
+status: published
+prerequisites: [lists-tuples]
+steps:
+  - id: s-goal
+    type: read
+    title: 本课目标与需要唤回的能力
+    bodyMd: |
+      本课唤回两项旧能力：06 的"for 依次取得每个元素、append 收集结果"，以及 01 的"赋值先求右侧结果、再让左侧名字绑定"。计数的"旧次数 → 加一 → 写回"正是 01 绑定模型的复用。
+      学完这一课，你要能做到两件事：用字典按键保存和读取记录；写出"第一次遇到建键、之后遇到加一"的正确计数循环，并说清每一行是在读字典还是在改字典。
+  - id: s-mechanism
+    type: read
+    title: 核心机制：按键访问，get 只读不写
+    bodyMd: |
+      字典按键访问，不按位置访问；相同键再次赋值是更新，不是新增。`d[key]` 在缺键时会失败（报 `KeyError`，只要求识别，处理留到 13 课）；`d.get(key, default)` 在缺键时返回 default，但不会把这个键写进字典。
+      `key in d` 查的是键，不是值。直接遍历字典得到的是键；`d.items()` 一次取得键值对，配合拆包写成 `for k, v in d.items()`。
+      字典保留插入顺序，但不自动按键排序；示例键只用字符串。
+
+      ```python
+      record = {"name": "python", "minutes": 30}
+      print(record["name"])  # 按键读取
+      print(record.get("level", 0))  # 缺键返回 0，不插入键
+      print("level" in record)  # 查键：False
+      for k, v in record.items():  # 键值对拆包
+          print(k, v)
+      ```
+  - id: s-predict
+    type: reveal
+    title: 主例：先预测，再展开
+    bodyMd: |
+      下面脚本从空字典开始，统计 `["python", "sql", "python"]` 中每个标签的出现次数。先别往下翻：在纸上写下你预测的输出，再点击展开核对。
+      预测时逐轮问自己：这一轮 tag 是什么？`get` 取到的旧次数是多少？这一行是在读字典，还是已经修改了字典？
+
+      ```python
+      counts = {}
+      for tag in ["python", "sql", "python"]:
+          old = counts.get(tag, 0)
+          counts[tag] = old + 1
+      print(counts)
+      ```
+    revealLabel: 先预测，再点开展开实际输出
+    revealMd: |
+      实际输出：
+
+      ```
+      {'python': 2, 'sql': 1}
+      ```
+
+      逐轮追踪：第 1 轮 tag 是 "python"，旧次数 0，新次数 1，counts 变成 {"python": 1}；第 2 轮 tag 是 "sql"，旧次数 0，新次数 1，counts 变成 {"python": 1, "sql": 1}；第 3 轮 tag 是 "python"，旧次数 1，新次数 2，counts 变成 {"python": 2, "sql": 1}。
+      为什么不是其他结果？`get(tag, 0)` 只读取、缺键时给出起点 0，它自己不写字典；真正的修改是 `counts[tag] = old + 1` 这一行——先求右侧结果，再让该键绑定新值。第一次遇到是"建键"，之后遇到是"更新"。
+  - id: s-misconception
+    type: reveal
+    title: 误区对照：只读不写回会怎样
+    bodyMd: |
+      有人把"旧次数 → 加一"写对了，却忘了写回字典。先在纸上写下你的预测：counts 最后是什么？再点击展开核对。
+
+      ```python
+      counts = {}
+      for tag in ["python", "sql"]:
+          counts.get(tag, 0) + 1
+      print(counts)
+      ```
+    revealLabel: 先预测，再点开展开实际输出
+    revealMd: |
+      实际输出：
+
+      ```
+      {}
+      ```
+
+      追踪：两轮循环里 `counts.get(tag, 0) + 1` 都算出了新值 1，但算完就丢了——没有赋值语句，字典一次都没被修改，counts 始终是空字典。
+      两个结论：第一，`get` 只读不写，算出新值必须显式写回 `counts[tag] = ...` 字典才会变；第二，每次遇到"代码算了、结果却没变化"，先检查缺的是哪一次绑定或赋值，而不是怀疑循环没执行。
+  - id: s-quiz-1
+    type: quiz
+    title: 小测一：预测输出
+    questionId: dicts-q1
+    revision: 1
+    promptMd: |
+      ```python
+      counts = {"python": 2}
+      n = counts.get("sql", 0)
+      print(n)
+      print("sql" in counts)
+      ```
+      上面代码两行 `print` 的输出是什么？
+    options:
+      - id: a
+        textMd: "`0`，`True`"
+        explanationMd: 对应"读取默认值就插入键"的错误理解：`get` 只读取不写入，counts 里仍然只有 "python" 一个键；`in` 查的是键，所以第二个输出是 False。
+      - id: b
+        textMd: "`0`，`False`"
+        explanationMd: 正确。缺键时 `get` 返回给定的 default 0，但不把 "sql" 写进字典；字典里依然没有这个键，`in` 查键的结果就是 False。
+      - id: c
+        textMd: 报错 `KeyError`
+        explanationMd: 对应"`get` 和方括号一样会失败"的错误理解：缺键时 `get` 返回 default，不会失败；会失败的是 `counts["sql"]` 这种方括号读取。
+      - id: d
+        textMd: "`None`，`False`"
+        explanationMd: None 是 02 课的"无结果"约定；`get` 的第二个参数就是用来替代它的——给了 default 0，缺键时返回的就是 0，不是 None。
+    correctOptionId: b
+    explanationMd: |
+      `get` 是"只读不写"的读取：缺键时交回 default，但字典本身一个键都不会多。想确认键在不在，用 `in` 查键——"sql" 从没被写进去，结果就是 False。
+  - id: s-quiz-2
+    type: quiz
+    title: 小测二：选对计数循环的写法
+    questionId: dicts-q2
+    revision: 1
+    promptMd: |
+      ```python
+      counts = {}
+      for tag in ["python", "sql", "python"]:
+          counts[tag] = 1   # 这一行需要改
+      print(counts)
+      ```
+      需求：只改动循环体内的一行，让它正确统计每个标签的出现次数，最终 `counts` 是 `{"python": 2, "sql": 1}`。选出正确的改法。
+    options:
+      - id: a
+        textMd: |
+          ```python
+          counts[tag] = counts.get(tag, 0) + 1
+          ```
+          最终 `{"python": 2, "sql": 1}`
+        explanationMd: 正确。每次先取旧次数（缺键时从 0 开始），加一后再写回；"python" 第二次出现时旧次数是 1，新次数是 2。
+      - id: b
+        textMd: |
+          ```python
+          counts[tag] = 1
+          ```
+          最终 `{"python": 1, "sql": 1}`
+        explanationMd: 对应"每次都写 1"的错误理解："python" 第二次出现时把旧的 1 覆盖掉，丢掉了"之前已经数过"的状态；计数必须基于旧值加一。
+      - id: c
+        textMd: |
+          ```python
+          counts[tag] = counts[tag] + 1
+          ```
+          第一条记录就报错 `KeyError`
+        explanationMd: 第一次遇到 "python" 时键还不存在，方括号读取缺键会失败（`KeyError` 只要求识别，处理留到 13 课）；必须用 `get` 提供缺键时的起点 0。
+      - id: d
+        textMd: |
+          ```python
+          counts.get(tag, 0) + 1
+          ```
+          最终 `counts` 保持 `{}`
+        explanationMd: 对应"只读不写回"的错误理解：新值算出来了但没有赋值回字典，counts 一次都没被修改；`get` 只读不写，写回要靠赋值语句。
+    correctOptionId: a
+    explanationMd: |
+      正确的计数循环是"旧次数 → 加一 → 写回"三步：`get` 提供缺键时的起点 0（只读），`+ 1` 算出新值，`counts[tag] = ...` 把新值写回（修改）。缺了写回，字典不变；缺了起点，第一次就失败。
+  - id: s-recap
+    type: read
+    title: 回忆总结与独立任务
+    bodyMd: |
+      本课要点：
+      1. 字典按键访问；相同键再次赋值是更新。
+      2. `d.get(key, default)` 缺键时返回 default，但不会插入该键；`in` 查的是键。
+      3. 计数循环固定三步：取旧次数 → 加一 → 写回字典。
+      4. `KeyError` 只要求识别（缺键的方括号读取），处理留到 13 课。
+      口头检查：这一行是在读字典，还是已经修改了字典？
+      独立任务（在 PyCharm 完成）：对一组标签输出每个标签的计数，并解释第一次与第二次遇到相同标签时，`get` 取到的旧值和写回的新值各是什么。这里不提供答案代码。

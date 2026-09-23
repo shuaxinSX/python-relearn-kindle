@@ -1,0 +1,164 @@
+schemaVersion: 1
+id: lists-tuples
+title: 列表与元组
+goal: 用合适的有序容器保存多项数据，并通过循环生成新的结果列表；分清 append 返回 None、元组二元记录拆包和无参数 split()。
+revision: 1
+status: published
+prerequisites: [strings, loops]
+steps:
+  - id: s-goal
+    type: read
+    title: 本课目标与需要唤回的能力
+    bodyMd: |
+      本课唤回两项旧能力：03 的"strip/lower 返回新字符串、原值不变"，以及 05 的"for 依次取得每个元素、逐轮追踪"。清洗规则和循环写法都不再新讲。
+      学完这一课，你要能做到三件事：用列表保存多项数据并逐项处理，生成新的结果列表；说清 `append` 到底改变了什么、交回了什么；读懂二元元组记录的拆包和无参数 `split()` 的分词结果。
+  - id: s-mechanism
+    type: read
+    title: 核心机制：列表可改，append 不交回列表
+    bodyMd: |
+      列表保留放入顺序、允许重复、可以修改元素或追加。`append` 是原地修改：它改变原列表，操作结果是 `None`，不能把结果接回原变量——`items = items.append("api")` 会让 items 变成 None。
+      元组用固定位置保存一条记录，如 `("python", 30)`；它的元素位置不能重新赋值。简单拆包把固定数量的元素分别绑定给名字：`name, minutes = record`。
+      无参数 `split()` 把文本按空白（空格、换行、制表符）切成字符串列表，连续空白只算一次分隔。
+
+      ```python
+      items = ["python"]
+      items.append("api")  # 只调用，不接回变量
+      print(items)  # ['python', 'api']，原列表被修改
+
+      record = ("python", 30)
+      name, minutes = record  # 拆包：两个名字各绑一个
+      print(name, minutes)
+      print("INFO  ERROR\nINFO".split())  # 按空白分词
+      ```
+  - id: s-predict
+    type: reveal
+    title: 主例：先预测，再展开
+    bodyMd: |
+      下面脚本清洗一组原始标签：逐项去两端空白、转小写，把非空结果 append 到新列表。先别往下翻：在纸上写下你预测的输出，再点击展开核对。
+      预测时逐轮问自己：这一轮 item 是什么？name 变成什么？`if` 通过了吗？cleaned 在第几轮发生了变化？
+
+      ```python
+      raw = [" INFO ", "", "ERROR"]
+      cleaned = []
+      for item in raw:
+          name = item.strip().lower()
+          if name != "":
+              cleaned.append(name)
+      print(cleaned)
+      ```
+    revealLabel: 先预测，再点开展开实际输出
+    revealMd: |
+      实际输出：
+
+      ```
+      ['info', 'error']
+      ```
+
+      逐轮追踪：第 1 轮 item 是 " INFO "，name 变成 "info"，通过判断，cleaned 变成 ["info"]；第 2 轮 item 是 ""，name 是 ""，没通过判断，cleaned 不变；第 3 轮 item 是 "ERROR"，name 变成 "error"，通过判断，cleaned 变成 ["info", "error"]。
+      为什么不是其他结果？列表保留顺序、允许重复，这里只是恰好没有重复项；空字符串被 `if` 拦下，没有 append；`append` 直接修改 cleaned，不需要也不应该接回变量。
+  - id: s-misconception
+    type: reveal
+    title: 误区对照：接回 append 的结果会怎样
+    bodyMd: |
+      有人想"保留 append 之后的新列表"，写成了 `result = items.append("api")`。先在纸上写下你的预测：items 和 result 各是什么？再点击展开核对。
+
+      ```python
+      items = ["python"]
+      result = items.append("api")
+      print(items)
+      print(result)
+      ```
+    revealLabel: 先预测，再点开展开实际输出
+    revealMd: |
+      实际输出：
+
+      ```
+      ['python', 'api']
+      None
+      ```
+
+      追踪：`items.append("api")` 先把原列表改成 ["python", "api"]，然后交回 `None`；result 绑定的是这个 `None`，不是新列表。
+      两个结论：第一，问"这个方法改变了什么，它交回了什么"——append 改变的是原列表，交回的是 None；第二，正确用法是只调用 `items.append("api")`，不赋值，需要列表时直接用 items。凡是看到"把修改方法的结果接回原变量"的写法，都要警惕名字被重新绑定成 None。
+  - id: s-quiz-1
+    type: quiz
+    title: 小测一：预测输出
+    questionId: lists-tuples-q1
+    revision: 1
+    promptMd: |
+      ```python
+      for tag in ["sql", "python", "sql"]:
+          print(tag)
+      ```
+      上面代码的输出是什么？
+    options:
+      - id: a
+        textMd: |
+          ```text
+          sql
+          python
+          ```
+        explanationMd: 对应"列表自动去重"的错误理解：列表允许重复，遍历会逐项取出，"sql" 出现两次就打印两次，不会自动合并成一次。
+      - id: b
+        textMd: |
+          ```text
+          sql
+          python
+          sql
+          ```
+        explanationMd: 正确。`for` 依次取得列表中的每个元素，顺序就是放入顺序，重复项照样逐项取出：sql、python、sql。
+      - id: c
+        textMd: |
+          ```text
+          0
+          1
+          2
+          ```
+        explanationMd: 对应"遍历得到的是下标"的错误理解：`for` 直接取得元素本身（"sql" 等字符串），不是位置编号；元素是什么就打印什么。
+      - id: d
+        textMd: |
+          ```text
+          python
+          sql
+          sql
+          ```
+        explanationMd: 对应"遍历按字母排序"的错误理解：列表不自动排序，遍历顺序就是放入顺序 sql、python、sql；想排序要到 12 课才讲。
+    correctOptionId: b
+    explanationMd: |
+      列表的两个基本性质：保留放入顺序、允许重复。`for` 依次取得每个元素，所以输出就是 sql、python、sql——顺序不变，重复不合并，取到的是元素本身不是下标。
+  - id: s-quiz-2
+    type: quiz
+    title: 小测二：选对 append 的用法
+    questionId: lists-tuples-q2
+    revision: 1
+    promptMd: |
+      ```python
+      items = ["python"]
+      result = items.append("api")
+      ```
+      需求：让 items 变成两元素列表，同时保留对这个列表的引用。选出对这段代码的正确描述和正确用法。
+    options:
+      - id: a
+        textMd: items 变成 `["python", "api"]`，result 为 None；正确用法是直接写 `items.append("api")`，不赋值
+        explanationMd: 正确。append 原地修改了 items，交回的是 None；需要列表时直接用 items，不接回变量，引用就一直保留。
+      - id: b
+        textMd: items 保持 `["python"]` 不变，result 是 `["python", "api"]`
+        explanationMd: 对应"append 返回新列表"的错误理解：append 是原地修改原列表，没有交回任何新列表；result 只是接收了返回值 None。
+      - id: c
+        textMd: items 和 result 都是 `["python", "api"]`
+        explanationMd: 把"修改原列表"和"交回新列表"混在了一起：append 只做前者，不做后者；result 绑定的是交回的 None，不可能是列表。
+      - id: d
+        textMd: 正确用法是写成 `items = items.append("api")` 来保留 items
+        explanationMd: 这样写恰恰丢掉了 items：等号右边先求出 None，再让 items 重新绑定为 None，原来的列表引用就没了。要保留 items，就只调用不赋值。
+    correctOptionId: a
+    explanationMd: |
+      记住这句口头检查："这个方法改变了什么，它交回了什么？"append 改变的是原列表（变成 ["python", "api"]），交回的是 None。所以正确用法是只调用 `items.append("api")`，不把结果接回任何变量。
+  - id: s-recap
+    type: read
+    title: 回忆总结与独立任务
+    bodyMd: |
+      本课要点：
+      1. 列表保留顺序、允许重复、可修改；`append` 原地修改，交回 None，不接回变量。
+      2. 元组用固定位置保存记录，位置不能重新赋值；`name, minutes = record` 是拆包。
+      3. 无参数 `split()` 按空白把文本切成字符串列表。
+      口头检查：这个方法改变了什么，它交回了什么？
+      独立任务（在 PyCharm 完成）：清洗一个字符串列表（去两端空白、转小写、去掉空字符串），保留原先顺序和重复项，输出一个新的非空标签列表，运行后自己核对结果。这里不提供答案代码。
