@@ -5,9 +5,9 @@
  */
 "use strict";
 
-var REPO = "/home/hatch/workspace/python-relearn";
+var path = require("path");
 var validateBackupText =
-  require(REPO + "/assets/reader.js").validateBackupText;
+  require(path.join(__dirname, "..", "assets", "reader.js")).validateBackupText;
 
 var results = [];
 function check(name, fn) {
