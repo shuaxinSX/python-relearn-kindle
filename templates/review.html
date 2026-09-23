@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}复习{% endblock %}
+{% block content %}
+<h1>待复习</h1>
+<p><a href="{{ url('course.html') }}">返回目录</a></p>
+<ol id="review-list"></ol>
+<ol id="review-index" hidden>
+{% for q in questions %}
+  <li data-question-id="{{ q.question_id }}" data-question-revision="{{ q.revision }}" data-lesson-id="{{ q.lesson_id }}" data-step-id="{{ q.step_id }}" data-lesson-title="{{ q.lesson_title }}" data-step-title="{{ q.step_title }}"><a href="{{ url('lessons/' + q.lesson_id + '.html') }}?review=1#{{ q.step_id }}">{{ q.question_id }}</a></li>
+{% endfor %}
+</ol>
+<noscript><p>复习列表需要脚本支持；你可以直接打开各课程页面阅读题目与解析。</p></noscript>
+{% endblock %}

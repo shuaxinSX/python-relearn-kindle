@@ -1,0 +1,158 @@
+schemaVersion: 1
+id: run-and-bindings
+title: 运行脚本、变量绑定
+goal: 对没有分支的短脚本，逐行说出每个名字的当前值和最终输出；明白重新运行从头开始，不会接着上一次的状态。
+revision: 1
+status: published
+prerequisites: []
+steps:
+  - id: s-goal
+    type: read
+    title: 本课目标与需要唤回的能力
+    bodyMd: |
+      课前唯一要求：能在 PyCharm 的普通脚本运行模式运行一个 .py 文件。本课唤回这项能力，不再要求交互式控制台。
+      学完这一课，你要能做到两件事：对没有分支的短脚本，逐行说出每个名字在任意一行的当前值，并预测最终输出；明白重新运行总是从头开始，不会接着上一次运行留下的状态继续。
+  - id: s-mechanism
+    type: read
+    title: 核心机制：赋值是绑定，不是等式
+    bodyMd: |
+      脚本文件和运行结果是两件事：文件里的文字只是静态说明，运行一次才产生输出。顶层语句从上到下逐条执行，每条都真正执行一遍。
+      赋值语句先把等号右边整体算出结果，再让左边的名字绑定它。所以 `x = x + 1` 的含义是"先取旧值加一，再重新绑定"，不是数学等式。变量就像贴在盒子上的名字标签，重新赋值就是把标签贴到新的结果上。
+      `print` 只负责把观察结果显示出来；没有 `print` 的代码照样计算，只是看不见。不写 `print` 不等于没有计算。
+
+      ```python
+      copies = 2  # copies 绑定整数 2
+      saved = copies  # 取 copies 当前值 2
+      copies = copies + 1  # 右边先算 2+1=3
+      print(saved, copies)  # 只显示，不计算
+      ```
+  - id: s-predict
+    type: reveal
+    title: 主例：先预测，再展开
+    bodyMd: |
+      下面是一个显示资料名称和份数的短脚本。先别往下翻：在纸上写下你预测的输出，再点击展开核对。
+      预测时逐行问自己：运行到这一行时，各名字的当前值是什么？这一行做了什么？为什么不是另一种结果？
+
+      ```python
+      title = "python basics"
+      copies = 2
+      saved = copies
+      copies = copies + 1
+      print(title)
+      print(saved, copies)
+      ```
+    revealLabel: 先预测，再点开展开实际输出
+    revealMd: |
+      实际输出：
+
+      ```
+      python basics
+      2 3
+      ```
+
+      逐行追踪：第 1 行把名字 title 绑定到字符串 "python basics"；第 2 行把 copies 绑定到整数 2；第 3 行先取 copies 的当前值 2，再绑定给 saved，此时 saved 是 2；第 4 行右边先算出 2+1=3，copies 重新绑定为 3，saved 保持 2；第 5 行显示 title 的当前值；第 6 行显示 2 3。
+      为什么不是其他结果？赋值只绑定"执行那一刻求出的值"。第 3 行把当时 copies 的值拍成快照交给 saved，之后 copies 再变，saved 不会自动更新。
+  - id: s-misconception
+    type: reveal
+    title: 误区对照：改值重跑，saved 会跟吗
+    bodyMd: |
+      把 demo.py 里 copies 的初值改成 5，再重新运行。输出会变成什么？saved 会自动跟着变吗？这一步只改变一个条件。
+      先在纸上写下你的预测，再点击展开核对实际输出和解释。
+    revealLabel: 先预测，再点开展开实际输出
+    revealMd: |
+      实际输出：
+
+      ```
+      python basics
+      5 6
+      ```
+
+      追踪：第 2 行 copies 绑定 5；第 3 行取 copies 的当前值 5 绑定给 saved；第 4 行右边先算 5+1=6，copies 重新绑定为 6，saved 保持 5。
+      三个结论：第一，saved 不是"随 copies 自动更新的公式"，它只保存赋值那一刻的值；第二，编辑文件后旧输出不会自动变化，必须重新运行一次；第三，运行的是哪个文件，输出就属于哪个文件，不能拿其他文件的旧输出当成当前文件的。
+  - id: s-quiz-1
+    type: quiz
+    title: 小测一：预测输出
+    questionId: run-and-bindings-q1
+    revision: 1
+    promptMd: |
+      ```python
+      copies = 2
+      saved = copies
+      copies = copies + 1
+      print(saved, copies)
+      ```
+      上面代码最后一行 `print(saved, copies)` 的输出是什么？
+    options:
+      - id: a
+        textMd: "`2 2`"
+        explanationMd: 对应"赋值只执行一次"的错误理解：认为第三行 `copies = copies + 1` 没有真正执行。顶层语句按顺序逐条执行，第三行确实把 copies 重新绑定为 3，所以 copies 不可能还是 2。
+      - id: b
+        textMd: "`2 3`"
+        explanationMd: 正确。第二行执行时 copies 是 2，saved 绑定的是当时求出的值 2；第三行只改变了 copies 的绑定，saved 保持 2。
+      - id: c
+        textMd: "`3 3`"
+        explanationMd: 对应"两个名字永久联动"的错误理解：认为 saved 会永远跟随 copies 自动变化。赋值只在执行瞬间把当前值交给左边，之后不会有任何自动同步关系。
+      - id: d
+        textMd: "`2 4`"
+        explanationMd: 对应"左右两侧同时更新"的错误理解：认为 `copies = copies + 1` 执行时，等号左右两侧各自独立变化、效果叠加成 4。赋值是先把右侧整体求出结果 2+1=3，再一次性让左侧名字绑定，右侧不会再"同步更新"一次。
+    correctOptionId: b
+    explanationMd: |
+      这是"绑定快照"机制：赋值只绑定执行那一刻求出的值。第二行执行时 copies 是 2，saved 拍下这个快照并保存；第三行重新绑定 copies 为 3，但这个变化只发生在 copies 上。已保存的 saved 不会回头改变。
+  - id: s-quiz-2
+    type: quiz
+    title: 小测二：选对更新与计算的顺序
+    questionId: run-and-bindings-q2
+    revision: 1
+    promptMd: |
+      ```python
+      price = 20
+      copies = 2
+      ```
+      需求：多买一份后，计算应付的总价 total。选出**先更新 copies、再计算 total** 的正确写法，并给出 total 的值。
+    options:
+      - id: a
+        textMd: |
+          ```python
+          copies = copies + 1
+          total = price * copies
+          ```
+          total 是 60
+        explanationMd: 正确。先把 copies 更新为 3，再用新值计算 20×3=60。中间结果不会自动重算，必须先更新再计算。
+      - id: b
+        textMd: |
+          ```python
+          total = price * copies
+          copies = copies + 1
+          ```
+          total 是 60
+        explanationMd: 对应"中间结果自动重算"的错误理解：total 在第一行已经用旧 copies=2 算出 40 并固定，后面 copies 变成 3 不会回头改变它。顺序错了，值也不可能是 60。
+      - id: c
+        textMd: |
+          ```python
+          total = price * copies
+          copies = copies + 1
+          ```
+          total 是 40
+        explanationMd: 这段代码的输出确实是 40，但它不是题目的正确做法：它用更新前的 copies=2 算出 40，题目要的是多买一份后的总价，应先更新再计算。能读对这段代码的输出，不等于选对了做法。
+      - id: d
+        textMd: |
+          ```python
+          copies = copies + 1
+          total = price * copies
+          ```
+          total 是 40
+        explanationMd: 对应"更新了就顺手用旧值"的错误理解：顺序对了，但 copies 已经是 3，total 应该是 20×3=60，而不是沿用更新前的 2。先更新就要用新值重算，不能算一半留一半。
+    correctOptionId: a
+    explanationMd: |
+      中间结果不会自动重算：`total = price * copies` 只用执行那一刻的 copies 求值。题目要的是多买一份后的总价，所以必须先把 copies 更新为 3，再计算 total=20×3=60。先计算再更新，total 就固定在旧值 40 上。
+  - id: s-recap
+    type: read
+    title: 回忆总结与独立任务
+    bodyMd: |
+      本课要点：
+      1. 脚本文件是静态文字，运行一次产生输出；顶层语句从上到下逐条执行。
+      2. 赋值先求右侧结果，再让左侧名字绑定；`x = x + 1` 是"取旧值、算新值、重新绑定"。
+      3. 赋值绑定的是那一刻的值：之后被取值的名字再变，已保存的结果不会自动更新。
+      4. 编辑文件后必须重新运行；重新运行总是从头开始，不会接着上次的状态。
+      口头检查：改了 copies，之前计算过的 total 为什么不会自己变化？
+      独立任务（在 PyCharm 完成）：用 name、copies、price 三个变量写一个短脚本，分三行输出资料名称、份数、整数总价，运行后自己核对结果。这里不提供答案代码。

@@ -1,0 +1,145 @@
+/* Python 重学微课 Kindle 版 · 样式
+ * 单栏、黑白、无背景图/阴影/渐变/图标字体/远程字体；无 CSS 变量与 Grid。 */
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: #fff;
+  color: #000;
+  font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  font-size: 26px;
+  line-height: 1.7;
+}
+body.fs-22 { font-size: 22px; }
+body.fs-30 { font-size: 30px; }
+
+main {
+  display: block;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 16px 20px 64px;
+}
+
+h1 { font-size: 1.3em; line-height: 1.4; margin: 0.8em 0; }
+h2 { font-size: 1.15em; line-height: 1.4; margin: 1.2em 0 0.6em; }
+h3 { font-size: 1em; margin: 1em 0 0.5em; }
+p, ul, ol { margin: 0.7em 0; }
+li { margin: 0.35em 0; }
+
+a { color: #0000ee; text-decoration: underline; }
+a:visited { color: #551a8b; }
+
+code, pre {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 0.92em;
+}
+body.fs-30 code, body.fs-30 pre { font-size: 26px; }
+pre {
+  white-space: pre;
+  overflow-x: auto;
+  border: 1px solid #000;
+  padding: 12px;
+  line-height: 1.5;
+}
+code { word-break: break-word; }
+pre code { font-size: 1em; word-break: normal; }
+
+button {
+  font-size: 22px;
+  min-height: 48px;
+  min-width: 48px;
+  padding: 8px 18px;
+  margin: 4px 8px 4px 0;
+  background: #fff;
+  color: #000;
+  border: 2px solid #000;
+}
+button:disabled { border-color: #666; color: #666; }
+
+input[type="radio"], input[type="checkbox"] { width: 28px; height: 28px; }
+
+label { display: block; min-height: 48px; padding: 6px 0; }
+.quiz-form label { border: 1px solid #000; padding: 10px 12px; margin: 8px 0; }
+
+textarea {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 140px;
+  font-size: 20px;
+  line-height: 1.5;
+  border: 2px solid #000;
+  padding: 10px;
+}
+
+:focus { outline: 3px solid #000; outline-offset: 2px; }
+
+[hidden] { display: none !important; }
+
+.vh {
+  position: absolute;
+  width: 1px; height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* 降级提示条 */
+#save-banner {
+  border: 3px solid #000;
+  padding: 12px;
+  margin: 0 0 16px;
+  font-weight: bold;
+  background: #fff;
+  color: #000;
+}
+
+/* 无脚本说明（有脚本时隐藏） */
+.js .no-js-note { display: none; }
+
+/* 分步门控 */
+.js-step .step { display: none; }
+.js-step .step.active { display: block; }
+.js-step .lesson-end { display: none; }
+.js-step .lesson-end.show { display: block; }
+
+/* 展开块门控 */
+.js-reveal .reveal-content { display: none; }
+.js-reveal .reveal.open .reveal-content { display: block; }
+
+/* 小测门控 */
+.js-quiz .answer-zone { display: none; }
+.js-quiz .answer-zone.show { display: block; }
+.js-quiz .quiz-result { display: none; }
+.js-quiz .quiz-result.show { display: block; }
+.js-quiz .quiz-hint { display: none; }
+.js-quiz .quiz-hint.show { display: block; }
+
+/* 小测文案（不只靠颜色区分） */
+.quiz-hint { font-size: 20px; font-weight: bold; border: 2px solid #000; padding: 10px 12px; }
+.quiz-verdict { font-weight: bold; font-size: 1.1em; border: 2px solid #000; padding: 10px 12px; }
+.quiz-verdict.correct::before { content: "✓ "; }
+.quiz-verdict.wrong::before { content: "✗ "; }
+.quiz-opt-explains { list-style: none; padding: 0; }
+.quiz-opt-explains li { border: 1px solid #000; padding: 10px 12px; margin: 8px 0; }
+.correct-tag {
+  display: inline-block;
+  border: 2px solid #000;
+  padding: 2px 10px;
+  margin-right: 10px;
+  font-weight: bold;
+  font-size: 20px;
+}
+.answer-zone { border: 2px solid #000; padding: 12px; margin: 12px 0; }
+
+/* 步骤导航 */
+#step-nav { margin: 16px 0; padding: 12px 0; border-top: 2px solid #000; border-bottom: 2px solid #000; }
+.step-count { display: inline-block; margin: 4px 12px; font-size: 20px; }
+
+/* 状态与辅助说明 */
+.lesson-status, .practice-status, .read-state, .pager-info { font-size: 20px; }
+.stat-line { font-size: 22px; }
+.raw-backup { max-height: 300px; overflow: auto; }
+
+/* 复习页分页 */
+.review-pager { margin: 16px 0; }

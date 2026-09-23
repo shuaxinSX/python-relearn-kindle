@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}{{ lesson.title }}{% endblock %}
+{% block content %}
+<article class="lesson" data-lesson-id="{{ lesson.id }}" data-lesson-title="{{ lesson.title }}">
+  <h1 class="lesson-title">{{ lesson.seq }}. {{ lesson.title }}</h1>
+  <p class="lesson-goal">学习目标：{{ lesson.goal }}</p>
+{% for step in lesson.steps %}
+  <section class="step" id="{{ step.id }}" data-step-type="{{ step.type }}">
+    <h2 class="step-title" tabindex="-1">{{ loop.index }}. {{ step.title }}</h2>
+{% if step.type == "read" %}
+    <div class="md">{{ step.body_html | safe }}</div>
+{% elif step.type == "reveal" %}
+    <div class="md">{{ step.body_html | safe }}</div>
+    <div class="reveal">
+      <button type="button" class="reveal-btn" aria-expanded="false" aria-controls="{{ step.id }}-rc">{{ step.reveal_label }}</button>
+      <div class="reveal-content" id="{{ step.id }}-rc"><div class="md">{{ step.reveal_html | safe }}</div></div>
+    </div>
+{% elif step.type == "quiz" %}
+    <div class="quiz" data-question-id="{{ step.question_id }}" data-question-revision="{{ step.question_revision }}" data-correct-option="{{ step.correct_option_id }}">
+      <div class="md quiz-prompt">{{ step.prompt_html | safe }}</div>
+      <form class="quiz-form">
+        <fieldset class="quiz-options"><legend class="vh">请选择一个答案</legend>
+{% for opt in step.options %}
+          <label class="quiz-option"><input type="radio" name="q-{{ step.question_id }}" value="{{ opt.id }}"><span class="opt-text">{{ opt.text_html | safe }}</span></label>
+{% endfor %}
+        </fieldset>
+        <p class="quiz-hint" role="alert"></p>
+        <button type="submit" class="quiz-submit">提交答案</button>
+      </form>
+      <div class="quiz-result" aria-live="polite">
+        <p class="quiz-verdict"></p>
+        <div class="md quiz-explain">{{ step.explanation_html | safe }}</div>
+        <ol class="quiz-opt-explains">
+{% for opt in step.options %}
+          <li data-opt="{{ opt.id }}"><div class="md">{{ opt.explanation_html | safe }}</div></li>
+{% endfor %}
+        </ol>
+        <p><button type="button" class="quiz-retry">重新作答</button> <a class="quiz-back-review" href="{{ url('review.html') }}" hidden>返回复习页</a></p>
+      </div>
+      <section class="answer-zone" aria-label="答案与解析">
+        <h3>答案与解析</h3>
+        <p>正确答案：{{ step.correct_opt_html | safe }}</p>
+        <div class="md">{{ step.explanation_html | safe }}</div>
+        <ol class="answer-opt-explains">
+{% for opt in step.options %}
+          <li data-opt="{{ opt.id }}"><div class="md">{{ opt.explanation_html | safe }}</div></li>
+{% endfor %}
+        </ol>
+      </section>
+    </div>
+{% elif step.type == "practice" %}
+    <div class="practice">
+      <div class="md practice-task">{{ step.task_html | safe }}</div>
+      <ul class="practice-acceptance">
+{% for item in step.acceptance_html %}
+        <li><div class="md">{{ item | safe }}</div></li>
+{% endfor %}
+      </ul>
+      <div class="reveal">
+        <button type="button" class="reveal-btn" aria-expanded="false" aria-controls="{{ step.id }}-hint-rc">查看提示</button>
+        <div class="reveal-content" id="{{ step.id }}-hint-rc"><div class="md">{{ step.hint_html | safe }}</div></div>
+      </div>
+      <div class="reveal">
+        <button type="button" class="reveal-btn" aria-expanded="false" aria-controls="{{ step.id }}-sol-rc">查看参考解法</button>
+        <div class="reveal-content" id="{{ step.id }}-sol-rc"><div class="md">{{ step.solution_html | safe }}</div></div>
+      </div>
+      <p class="practice-done"><label><input type="checkbox" id="{{ step.id }}-done"> 我已在 PyCharm 完成</label></p>
+    </div>
+{% endif %}
+  </section>
+{% endfor %}
+</article>
+<nav class="step-nav" id="step-nav" aria-label="步骤导航" hidden></nav>
+<div class="lesson-end">
+  <div class="read-mark" hidden>
+    <button type="button" id="mark-read">标记为已读</button>
+    <p class="read-state"></p>
+  </div>
+  <nav>
+    <a href="{{ url('course.html') }}">返回目录</a>
+{% if next_lesson %}
+    <a href="{{ url('lessons/' + next_lesson.id + '.html') }}">下一课：{{ next_lesson.title }}</a>
+{% endif %}
+  </nav>
+</div>
+<noscript><p>未启用脚本时显示全部步骤，可直接阅读全文。</p></noscript>
+{% endblock %}

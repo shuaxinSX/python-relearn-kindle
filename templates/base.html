@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}{% endblock %} · {{ course_title }}</title>
+<script>{{ prl_config_js | safe }}</script>
+<link rel="stylesheet" href="{{ asset('styles.css') }}">
+<script src="{{ asset('reader.js') }}" defer></script>
+</head>
+<body>
+<div id="save-banner" class="save-banner" role="alert" hidden></div>
+<main>
+{% block content %}{% endblock %}
+</main>
+</body>
+</html>

@@ -1,0 +1,106 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: 安装构建依赖
+        run: pip install -r requirements-build.txt
+
+      - name: 校验内容
+        run: python tools/validate.py
+
+      - name: 运行测试
+        run: python -m unittest discover -s tests
+
+      - name: 计算 BASE_PATH
+        id: basepath
+        run: |
+          REPO="${{ github.event.repository.name }}"
+          OWNER="${{ github.repository_owner }}"
+          if [ "$REPO" = "$OWNER.github.io" ]; then
+            echo "base_path=/" >> "$GITHUB_OUTPUT"
+          else
+            echo "base_path=/$REPO/" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 构建静态站（冒烟）
+        run: python tools/build.py --base-path "${{ steps.basepath.outputs.base_path }}" --out dist
+
+  build:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: 安装构建依赖
+        run: pip install -r requirements-build.txt
+
+      - name: 校验内容
+        run: python tools/validate.py
+
+      - name: 计算 BASE_PATH
+        id: basepath
+        run: |
+          REPO="${{ github.event.repository.name }}"
+          OWNER="${{ github.repository_owner }}"
+          if [ "$REPO" = "$OWNER.github.io" ]; then
+            echo "base_path=/" >> "$GITHUB_OUTPUT"
+          else
+            echo "base_path=/$REPO/" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 构建静态站
+        run: python tools/build.py --base-path "${{ steps.basepath.outputs.base_path }}" --out dist
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: 上传产物
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

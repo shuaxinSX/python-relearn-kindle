@@ -1,0 +1,8 @@
+schemaVersion: 1
+courseId: python-relearn
+title: Python 重学微课
+pythonVersion: "3.13"
+modules:
+  - id: m1
+    title: M1 读懂基本代码
+    lessonIds: [run-and-bindings]

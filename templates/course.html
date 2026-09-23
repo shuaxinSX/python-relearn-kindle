@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}课程目录{% endblock %}
+{% block content %}
+<h1>课程目录</h1>
+<p><a href="{{ url('index.html') }}">返回首页</a></p>
+{% for module in modules %}
+<section class="module">
+  <h2>{{ module.title }}</h2>
+  <ul class="lesson-list">
+{% for lesson in module.lessons %}
+    <li data-lesson-id="{{ lesson.id }}">
+      <a href="{{ url('lessons/' + lesson.id + '.html') }}">{{ lesson.seq }}. {{ lesson.title }}</a>
+      <span class="lesson-status">未开始</span>
+{% if lesson.has_practice %}
+      <span class="practice-status">实践：未完成</span>
+{% endif %}
+    </li>
+{% endfor %}
+  </ul>
+</section>
+{% endfor %}
+<noscript><p>未启用脚本时课程状态不会显示；点击课程可直接阅读全文。</p></noscript>
+{% endblock %}
