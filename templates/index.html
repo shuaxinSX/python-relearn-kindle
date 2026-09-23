@@ -6,7 +6,7 @@
   已读 <span id="stat-read">0</span> / <span id="stat-total">{{ total }}</span> 课 ·
   待复习 <span id="stat-review">0</span> 题
 </p>
-<p><a class="btn" id="start-btn" href="{{ url('course.html') }}">开始学习</a></p>
+<p><a class="btn" id="home-primary" href="{{ url('course.html') }}">开始学习</a></p>
 <nav aria-label="站点导航">
   <ul>
     <li><a href="{{ url('course.html') }}">课程目录</a></li>
@@ -20,5 +20,8 @@
   <li data-lesson-id="{{ lesson.id }}"><a href="{{ url('lessons/' + lesson.id + '.html') }}">{{ lesson.seq }}. {{ lesson.title }}</a></li>
 {% endfor %}
 </ol>
+<ol id="catalog-questions" hidden>
+{% for q in questions %}  <li data-question-id="{{ q.question_id }}" data-question-revision="{{ q.revision }}"></li>
+{% endfor %}</ol>
 <noscript><p>未启用脚本时仍可直接阅读各课全文；学习进度保存需要脚本支持。</p></noscript>
 {% endblock %}

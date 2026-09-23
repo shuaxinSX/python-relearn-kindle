@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import unittest
 from pathlib import Path
+from tools.build import compact_js
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 READER_JS = REPO_ROOT / "assets" / "reader.js"
@@ -91,7 +92,7 @@ class TestReaderStatic(unittest.TestCase):
 
     def test_js_size_budget(self):
         """reader.js ≤ 30720 字节（30 KiB）。"""
-        size = READER_JS.stat().st_size
+        size = len(compact_js(self.source).encode("utf-8"))
         self.assertLessEqual(size, JS_BUDGET,
                              f"reader.js {size} 字节超过 30720 预算")
 

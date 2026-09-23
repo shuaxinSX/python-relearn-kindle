@@ -2,7 +2,7 @@ schemaVersion: 1
 id: paths-text
 title: pathlib、UTF-8 文本及 with
 goal: 把文本文件正确接入处理流程：分清"路径"与"内容"，用显式 UTF-8 和 with 读写，并在读完算完之后才打开输出文件写报告。
-revision: 1
+revision: 2
 status: published
 prerequisites:
   - strings
@@ -13,13 +13,15 @@ steps:
     type: read
     title: 本课目标与需要唤回的能力
     bodyMd: |
-      03 课把原始文本规范化，06 课把文本按空白切成词，13 课认出了 FileNotFoundError 和 UnicodeDecodeError 的名字。本课把这三样接起来：从磁盘读进文本，再把报告写回去。
+      03 课把原始文本规范化，06 课把文本按空白切成词，13 课学会了只处理已决定如何应对的异常。本课把这三样接起来：从磁盘读进文本，再把报告写回去。
       学完这一课，你要能做到两件事：说清楚一段代码从哪里读文件、用 显式 UTF-8 解释它；写报告时先把输入读完、把报告字符串算好，最后才用 w 打开输出文件写入，不提前截断已有报告。
   - id: s-mechanism
     type: read
     title: 核心机制：路径不是内容，打开才碰磁盘
     bodyMd: |
       Path 表示"路径"这个地址，不是文件内容本身。`from pathlib import Path` 是从标准库取出路径工具（模块机制 15 课再讲）。构造 Path、拼接路径都只是摆弄地址；真正触碰磁盘的是 open、read、write。
+      `.name` 取路径最后一段，`.is_absolute()` 判断是否为绝对路径；都是查看地址，不读取文件。
+      FileNotFoundError 表示文件不存在，UnicodeDecodeError 表示按指定编码解码失败，OSError 表示文件操作等系统错误。缺失文件与合法空文件不是一回事。
       相对路径是相对于"进程当前工作目录"的，不会自动相对于脚本文件。拿不准时打印 `Path.cwd()` 核对，再确认文件是不是真的在那里。想稳定指向"脚本旁边的文件"，用 `Path(__file__).parent / 文件名`：它表示这个脚本自己所在的文件夹，不随工作目录变化。
       读写文本要显式声明编码：`encoding="utf-8"`，读和写都写上。`with` 负责在代码块结束时关掉文件，不用你记着 close。
       最关键的一条写入纪律：`w` 打开一个已存在的文件会立刻截断内容，不是等到第一次 write。所以顺序必须是：先读完输入、生成完整的报告字符串，确认成功之后，才用 `w` 打开输出文件写入。
@@ -31,11 +33,24 @@ steps:
       print(path.is_absolute())
       print(path.name)
       ```
+  - id: s-join
+    type: read
+    title: 把已算好的各行拼成报告
+    bodyMd: |
+      `"\n".join(字符串列表)` 在各项之间放一个换行，返回一段新文本，不修改列表；再加 `"\n"` 让报告末尾也有换行。这里的 `\n` 是一个换行字符。下面依次输出“总词数：4”和“python: 2”两行；所有项都必须是字符串，所以数字先用 str 转换。
+
+      ```python
+      lines = ["总词数：" + str(4), "python: 2"]
+      report = "\n".join(lines) + "\n"
+      print(report, end="")
+      ```
+
+      `print(..., end="")` 只是不再额外添加换行；报告字符串自己已有末尾换行。真正写报告时用 `f.write(report)`，在读取与处理都成功之后才打开输出。
   - id: s-predict
     type: reveal
     title: 主例：先预测，再展开
     bodyMd: |
-      练习目录里有一个 input.txt，内容是两行词。下面的代码先定位文件，再用 with 和 UTF-8 读出内容，接上 03、06 课学过的 lower、split 和计数。先预测它打印哪两个数，再点开展开核对。
+      在专用练习目录创建 input.txt，第一行写 `Python python`，第二行写 `SQL api`，各行末尾有换行。脚本和这个文件放在同一目录。下面的代码先定位文件，再用 with 和 UTF-8 读出内容，接上 03、06 课学过的 lower、split 和计数。先预测它打印哪两个数，再点开展开核对。
       预测时注意：`Path(__file__).parent` 拼出的是哪个目录？with 块结束时文件会怎样？lower 和 split 各产生什么？
 
       ```python
@@ -47,7 +62,10 @@ steps:
           text = f.read()
       words = text.lower().split()
       print(len(words))
-      print(words.count("python"))
+      counts = {}
+      for word in words:
+          counts[word] = counts.get(word, 0) + 1
+      print(counts.get("python", 0))
       ```
     revealLabel: 先预测，再点开展开实际输出
     revealMd: |
@@ -59,27 +77,26 @@ steps:
       ```
 
       逐行追踪：`Path(__file__).parent / "input.txt"` 拼出脚本所在目录下的 input.txt，不随工作目录变化；`with ... open(encoding="utf-8")` 打开并声明编码，块结束自动关闭；`f.read()` 一次读出全文；`text.lower().split()` 复用 03、06 课：转小写后按空白切成 ["python", "python", "sql", "api"]；最后打印总数 4 和 python 的出现次数 2。
-      为什么是 4 不是别的数？split 按空白切分，两行共四个词；lower 让 "Python" 和 "python" 算成同一个词。如果文件不存在，这里会报 FileNotFoundError；如果编码声明不对，会报 UnicodeDecodeError——都是 13 课认过的名字。
+      为什么是 4 不是别的数？split 按空白切分，两行共四个词；lower 让 "Python" 和 "python" 算成同一个词。如果文件不存在，这里会报 FileNotFoundError；如果编码声明不对，会报 UnicodeDecodeError——这是本课解释的两种文件失败。
   - id: s-misconception
     type: reveal
     title: 误区对照：先开输出会过早截断
     bodyMd: |
       report.txt 里已经有一份旧报告。现在输入文件读取失败，下面的"先占好输出位置"写法会发生什么？先预测旧报告还在不在，再点开展开看实际结果和原因。
+      仅在专用练习目录运行：先手工把 report.txt 内容设为“旧报告”，确保 nope.txt 不存在。此反例会清空练习用旧报告，不要对个人文件运行。
       注意 `open("w")` 出现的位置：它在 try 里面、读输入之前——截断发生在前还是后？
 
       ```python
-      import tempfile
       from pathlib import Path
-      with tempfile.TemporaryDirectory() as tmp:
-          out = Path(tmp) / "report.txt"
-          out.write_text("旧报告")  # 准备旧报告
-          try:  # 错误顺序：先开输出，再读输入
-              with out.open("w", encoding="utf-8") as f:
-                  text = Path(tmp, "nope.txt").read_text(encoding="utf-8")
-                  f.write(text)
-          except FileNotFoundError:
-              print("读取失败")
-          print("旧报告还在：", out.read_text(encoding="utf-8") == "旧报告")
+      try:  # 错误顺序：先开输出，再读输入
+          with Path("report.txt").open("w", encoding="utf-8") as f:
+              with Path("nope.txt").open(encoding="utf-8") as g:
+                  text = g.read()
+              f.write(text)
+      except FileNotFoundError:
+          print("读取失败")
+      with Path("report.txt").open(encoding="utf-8") as f:
+          print("旧报告还在：", f.read() == "旧报告")
       ```
     revealLabel: 先预测，再点开展开实际输出
     revealMd: |
@@ -90,7 +107,7 @@ steps:
       旧报告还在： False
       ```
 
-      追踪：`out.open("w", ...)` 执行的瞬间，旧报告就被截断清空了；随后读 input.txt 失败，except 接住 FileNotFoundError，但旧内容已经没了，新内容又没写进去。
+      追踪：`Path("report.txt").open("w", ...)` 执行的瞬间，旧报告就被截断清空了；随后读 input.txt 失败，except 接住 FileNotFoundError，但旧内容已经没了，新内容又没写进去。
       结论：w 的截断发生在"打开"那一刻，不是 write 那一刻。正确的纪律是：先成功读取输入、生成完整的报告字符串，确认成功之后，才用 `w` 打开输出文件写入。读失败时根本走不到打开输出那一步，旧报告碰都不碰。
   - id: s-quiz-1
     type: quiz
@@ -119,15 +136,16 @@ steps:
     type: quiz
     title: 小测二：选对写入顺序
     questionId: paths-text-q2
-    revision: 1
+    revision: 2
     promptMd: |
-      report.txt 里已有一份上次的正确报告。需求：如果这次 input.txt 读取失败，必须保留旧报告。选出符合要求的写入顺序。
+      report.txt 里已有一份上次的正确报告。需求：读取成功时用完整新报告替换旧报告；如果 input.txt 读取失败，必须保留旧报告。已执行 `from pathlib import Path`，以下片段接在它之后。选出符合要求的写入顺序。
     options:
       - id: a
         textMd: |
           ```python
           with Path("input.txt").open(encoding="utf-8") as f:
               text = f.read()
+          lines = ["词数：" + str(len(text.lower().split()))]
           report = "\n".join(lines) + "\n"
           with Path("report.txt").open("w", encoding="utf-8") as f:
               f.write(report)

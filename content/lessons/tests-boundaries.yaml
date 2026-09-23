@@ -2,7 +2,7 @@ schemaVersion: 1
 id: tests-boundaries
 title: 断言、边界用例与可测试函数
 goal: 先用独立手算写清正确结果，再用正常与边界样本检验函数；把纯逻辑与文件读写分开，让每一部分都能被检查。
-revision: 1
+revision: 2
 status: published
 prerequisites:
   - comprehensions-sort
@@ -28,7 +28,7 @@ steps:
       try:
           assert 1 + 1 == 3, "约定：1+1 等于 2"
       except AssertionError as exc:
-          print(type(exc).__name__)
+          print("AssertionError")
       print("done")
       ```
   - id: s-predict
@@ -95,7 +95,7 @@ steps:
     type: quiz
     title: 小测一：选出能抓住错误的测试
     questionId: tests-boundaries-q1
-    revision: 1
+    revision: 2
     promptMd: |
       P3 约定：minutes 为 0 的非空名称记录要保留。但下面的错误实现要求 `minutes > 0`：
 
@@ -108,7 +108,7 @@ steps:
           return kept
       ```
 
-      选出能暴露这个错误的测试。
+      选出专门暴露“合法零分钟被过滤”这一错误的测试（不测试另一项空名称规则）。
     options:
       - id: a
         textMd: |
@@ -164,7 +164,7 @@ steps:
           ```python
           assert count_words("Python python")["python"] == 2
           ```
-        explanationMd: 只查一个键：如果函数多算出一个 `"python,"` 键（标点没处理），这个断言照样通过。完整比较整个字典，才能抓住多余项和缺失项。
+        explanationMd: 只查一个键：如果错误实现凭空多算出一个输入里没有的 `"python,"` 键，这个断言照样通过。完整比较整个字典，才能抓住多余项和缺失项。
       - id: d
         textMd: |
           ```python
@@ -236,11 +236,7 @@ steps:
 
       ## 三条文件路径的验证方法（专用测试目录）
       1. 缺失输入：把 input.txt 移走或改名后运行 main。
-      2. 无效 UTF-8：复制下面两行预制坏样本（不用学二进制 API）：
-      ```python
-      from pathlib import Path
-      Path("input.txt").write_bytes(b"\xff\xfe\xff bad bytes")
-      ```
+      2. 无效 UTF-8：在电脑下载[预制坏样本](../exercises/invalid-utf8.txt)，复制到专用练习目录并改名为 input.txt；不要在编辑器里另存为 UTF-8。无需学习二进制写入 API。
       3. 写入失败：先把 report.txt 建成同名目录（`mkdir report.txt`），再运行 main；验证完删掉该目录。
     hintMd: |
       1. 先脱离磁盘写 count_words：复用 P2 的"旧次数→加一→写回"，在小脚本里用 "Python python" 试，结果应该是 {"python": 2}。
@@ -264,7 +260,7 @@ steps:
       ```
 
       ### 阶段二：count_key + format_report——排好序、拼成字符串
-      key 只返回次数，reverse=True 降序；次数相同靠 sorted 的稳定性保持首次出现顺序。先循环累计总数，再逐行拼，最后 join。
+      将阶段一、二的三个函数依次放入 word_tools.py，顶层不调用它们。key 只返回次数，reverse=True 降序；次数相同靠 sorted 的稳定性保持首次出现顺序。先循环累计总数，再逐行拼，最后 join。
 
       ```python
       def count_key(item):
@@ -275,8 +271,8 @@ steps:
       ```python
       def format_report(counts):
           total = 0
-          for count in counts.values():
-              total += count
+          for name, count in counts.items():
+              total = total + count
           lines = ["总词数：" + str(total)]
           lines.append("不同词数：" + str(len(counts)))
           ordered = sorted(counts.items(), key=count_key, reverse=True)
@@ -286,12 +282,15 @@ steps:
       ```
 
       ### 阶段三：main——把文件接进来，错误各走各的门
-      流程：定位路径 → 读（with/UTF-8）→ 计数 → 格式化 → 全部成功后才 w 写。文件异常只处理环境失败，不包算法。（读分支 13 行稍超 12 行：三种文件失败各走各的 except，这是本课要练的针对性处理，不宜再压缩。）
+      以下两块按顺序合成 main.py；第二块开头保留 4 格缩进，仍属于 main。文件路径相对于当前工作目录。流程：定位路径 → 读（with/UTF-8）→ 计数 → 格式化 → 全部成功后才 w 写。文件异常只处理环境失败，不包算法。（读分支 13 行稍超 12 行：三种文件失败各走各的 except，这是本课要练的针对性处理，不宜再压缩。）
 
       ```python
+      from pathlib import Path
+      from word_tools import count_words, format_report
+
       def main(input_path="input.txt", output_path="report.txt"):
           try:
-              with open(input_path, encoding="utf-8") as f:
+              with Path(input_path).open(encoding="utf-8") as f:
                   text = f.read()
           except FileNotFoundError:
               print("输入文件不存在：" + input_path)
@@ -307,10 +306,10 @@ steps:
       ```python
           report = format_report(count_words(text))  # 读成功后才到这里
           try:
-              with open(output_path, "w", encoding="utf-8") as f:
+              with Path(output_path).open("w", encoding="utf-8") as f:
                   f.write(report)
           except OSError:
-              print("写入报告失败：输出文件未更新。")
+              print("写入报告失败：报告可能不完整，请检查输出文件。")
               return
           print("报告已生成：" + output_path)
 
@@ -329,7 +328,7 @@ steps:
       ```
       其余固定内容测试照下面的验收清单逐条补全；补完后，再拿一段自己新手算的文本加一条断言——这才是"独立完成的证据"。
     acceptance:
-      - '固定输入 input.txt 生成的 report.txt 与题目给出的 7 行逐字节一致（总词数 7、不同词数 3、python:3、sql:2、api:2，末尾换行）。'
+      - '固定输入 input.txt 生成的 report.txt 与题目给出的 5 行逐字节一致（总词数 7、不同词数 3、python:3、sql:2、api:2，末尾换行）。'
       - 'count_words("") 返回 {}；format_report({}) 返回 "总词数：0\n不同词数：0\n"。'
       - '仅空白 " \n\t " 与空文本得到同样的零值报告。'
       - 'count_words("Python") == {"python": 1}，报告总数 1、不同词数 1。'

@@ -4,6 +4,7 @@
 <h1>待复习</h1>
 <p><a href="{{ url('course.html') }}">返回目录</a></p>
 <ol id="review-list"></ol>
+<p id="review-empty" hidden>当前没有待复习题目。</p>
 <ol id="review-index" hidden>
 {% for q in questions %}
   <li data-question-id="{{ q.question_id }}" data-question-revision="{{ q.revision }}" data-lesson-id="{{ q.lesson_id }}" data-step-id="{{ q.step_id }}" data-lesson-title="{{ q.lesson_title }}" data-step-title="{{ q.step_title }}"><a href="{{ url('lessons/' + q.lesson_id + '.html') }}?review=1#{{ q.step_id }}">{{ q.question_id }}</a></li>

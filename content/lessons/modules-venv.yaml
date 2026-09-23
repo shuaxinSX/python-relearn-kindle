@@ -2,7 +2,7 @@ schemaVersion: 1
 id: modules-venv
 title: 模块、入口、虚拟环境与安装依赖
 goal: 把处理函数放进可导入的模块，用 main 加入口保护区分"直接运行"和"被导入"，并确认装包用的解释器就是运行脚本的那个。
-revision: 1
+revision: 2
 status: published
 prerequisites:
   - functions
@@ -24,16 +24,20 @@ steps:
 
       ```python
       import sys
-      from pathlib import Path
-
-      exe = Path(sys.executable)
-      print(exe.is_absolute() and exe.exists())
+      print(sys.executable)  # 输出本机实际解释器路径
       ```
+  - id: s-environment
+    type: read
+    title: 选择项目解释器的最短流程
+    bodyMd: |
+      在项目目录的终端执行 `python -m venv .venv`（有些 macOS/Linux 使用 python3），意思是让这个 Python 的 venv 模块建立项目环境。然后在 PyCharm 的项目解释器设置中选中它，再运行上一部分的 sys.executable 核对。
+      Windows 的解释器路径示意是 `.venv\Scripts\python.exe`，macOS/Linux 是 `.venv/bin/python`。例如 macOS/Linux 的安装命令为 `.venv/bin/python -m pip install 包名`；Windows 命令提示符为 `.venv\Scripts\python.exe -m pip install 包名`。这些是模板，不是你的真实绝对路径；包名也要替换，V1 实践无需安装第三方包。
+      激活一个终端不代表 PyCharm 已切换。以 PyCharm 实际运行时的 sys.executable 为准；`-m pip` 表示使用指定解释器运行它的 pip。
   - id: s-predict
     type: reveal
     title: 主例：先预测，再展开
     bodyMd: |
-      word_tools.py 里顶层打印 "loaded"，main 函数里打印 "report"，main 的调用受入口保护（两个文件放在同一目录）。另一个脚本第一次导入它。先预测：导入时会打印什么？直接运行 word_tools.py 又会打印什么？
+      word_tools.py 里顶层打印 "loaded"，main 函数里打印 "report"，main 的调用受入口保护（两个文件放在同一目录）。另一个脚本第一次导入它。工具模块略长，是为了完整保留顶层语句、函数与受保护入口三者的对照；随后单独展示调用文件。先预测：导入时会打印什么？直接运行 word_tools.py 又会打印什么？
       预测分两问：导入时，word_tools 的顶层语句哪些会执行？直接运行时，`__name__` 是什么，保护条件成立吗？
 
       ```python
@@ -88,7 +92,10 @@ steps:
       print("loaded")
 
       def count_words(text):
-          ...
+          counts = {}
+          for word in text.lower().split():
+              counts[word] = counts.get(word, 0) + 1
+          return counts
 
       print("report")
       ```
@@ -101,7 +108,7 @@ steps:
     type: quiz
     title: 小测一：导入时打印什么
     questionId: modules-venv-q1
-    revision: 1
+    revision: 2
     promptMd: |
       word_tools.py 内容如下。另一个脚本第一次正常导入它（`import word_tools`），不直接运行。导入时屏幕上会出现什么？
 
@@ -109,7 +116,10 @@ steps:
       print("loaded")
 
       def count_words(text):
-          ...
+          counts = {}
+          for word in text.lower().split():
+              counts[word] = counts.get(word, 0) + 1
+          return counts
 
       def main():
           print("report")
@@ -147,7 +157,7 @@ steps:
         explanationMd: 正确。包必须装到"运行脚本的那个解释器"里；`-m pip` 明确指定用哪个 Python 装；最后核对 sys.executable，确认装包和运行是同一个。
       - id: b
         textMd: 在系统终端多运行几次 `pip install requests`，直到 PyCharm 里能 import。
-        explanationMd: 对应"多装几次就好"的误解。系统 pip 永远装到系统 Python 里，运行再多次也不会进入项目 .venv；问题不在次数，在"装给了谁"。
+        explanationMd: 对应"多装几次就好"的误解。在题设已经确认的系统 pip 上反复安装，仍不会进入项目 .venv；问题不在次数，在"装给了谁"。
       - id: c
         textMd: 把 requests 的代码复制一份放进项目目录，就不用装了。
         explanationMd: 绕开了环境管理：复制的代码没有版本记录、不会更新依赖，还可能和项目文件混在一起。正确做法是把包交到对的解释器手里，而不是复制代码。

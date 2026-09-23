@@ -2,7 +2,7 @@ schemaVersion: 1
 id: strings
 title: 字符串、切片与格式化
 goal: 把一段原始文本规范化为统一格式，并解释索引、切片和每一步操作究竟返回了什么。
-revision: 1
+revision: 2
 status: published
 prerequisites:
   - types-and-none
@@ -18,6 +18,7 @@ steps:
     title: 核心机制：按位置取，方法返回新文本
     bodyMd: |
       字符串里的字符按位置编号，第一个字符的下标是 0。`name[0:6]` 取下标 0 到 5 的字符：取左端，不取右端。`name[-3:]` 从倒数第 3 个字符取到结尾，冒号后面空着就是"一直取到最后"。
+      `值.方法()` 表示调用这个值提供的操作；括号里可以传入所需参数，本课的 strip/lower 不需要参数。
       字符串不能原地改一个字符：`strip()` 去掉两端空白、`lower()` 转小写，都是交回一个处理好的新文本，原字符串不动。想要结果，就用名字把它接住。
       `f"应付：{total:.2f} 元"` 把 total 嵌入一句话：`{total:.2f}` 只负责显示成两位小数；total 本人还是整数，没有变成文本。
 
@@ -30,6 +31,12 @@ steps:
       total = 68
       print(f"应付：{total:.2f} 元")
       ```
+  - id: s-boundaries
+    type: read
+    title: 单个索引与切片的边界
+    bodyMd: |
+      `name[0]` 取第一个字符，`name[-1]` 取最后一个；对 `"report.txt"` 分别得到 `"r"` 和 `"t"`。单个索引必须确实存在：`name[99]` 会报 IndexError，因为没有这个位置。切片则允许边界超出：`name[0:99]` 只取现有字符，得到整个 `"report.txt"`，不会补字符或报越界。
+      `.2f` 只调整显示的小数位数，不解决货币计算精度。本轮费用用小整数元计算。
   - id: s-predict
     type: reveal
     title: 主例：先预测，再展开
@@ -61,6 +68,13 @@ steps:
     bodyMd: |
       有人认为"调用了 `strip()`，raw 就被清洗好了"。下面这段代码只改一个条件：不再用名字接住返回结果。
       先在纸上写下你的预测：print 输出什么？再点击展开核对实际输出和解释。
+
+      ```python
+      raw = " Report.TXT "
+      raw.strip()
+      raw.lower()
+      print(raw)
+      ```
     revealLabel: 先预测，再点开展开实际输出
     revealMd: |
       实际输出：

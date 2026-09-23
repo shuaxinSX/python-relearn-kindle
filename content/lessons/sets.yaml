@@ -2,7 +2,7 @@ schemaVersion: 1
 id: sets
 title: 集合、成员判断与去重
 goal: 能区分“出现过”“保序去重结果”和“每项出现次数”三种统计口径，并用集合判重、列表保序、字典计数三容器分工实现去重与频次统计。
-revision: 1
+revision: 2
 status: published
 prerequisites: [dicts]
 steps:
@@ -219,6 +219,11 @@ steps:
       valid = 0       # 有效记录数
       ignored = 0     # 忽略记录数
 
+      ```
+
+      再逐条清洗、计数，首次见到才追加顺序列表：
+
+      ```python
       for raw in raw_tags:
           tag = raw.strip().lower()
           if tag == "":
@@ -230,6 +235,11 @@ steps:
               seen.add(tag)
               unique.append(tag)
 
+      ```
+
+      最后输出数量与保序明细，接在前面循环之后：
+
+      ```python
       print(f"有效记录：{valid}")
       print(f"不同标签：{len(unique)}")
       print(f"忽略记录：{ignored}")

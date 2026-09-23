@@ -31,6 +31,24 @@ STEP_TYPES = ("read", "reveal", "quiz", "practice")
 STATUSES = ("draft", "published")
 
 
+class UniqueLoader(yaml.SafeLoader):
+    pass
+
+
+def unique_mapping(loader, node):
+    result = {}
+    for key_node, value_node in node.value:
+        key = loader.construct_object(key_node)
+        if not isinstance(key, str) or key in result:
+            raise yaml.constructor.ConstructorError(None, None,
+                f"重复或非字符串 YAML 键: {key!r}", key_node.start_mark)
+        result[key] = loader.construct_object(value_node)
+    return result
+
+
+UniqueLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, unique_mapping)
+
+
 # --------------------------------------------------------------------------
 # 基础工具
 # --------------------------------------------------------------------------
@@ -45,7 +63,7 @@ def is_int(value) -> bool:
 
 def check_id(value, what: str, where: str, errors: list) -> bool:
     """检查 ID 合法性（小写字母/数字/短横线），非法则记录错误。"""
-    if not isinstance(value, str) or not ID_RE.match(value):
+    if not isinstance(value, str) or not ID_RE.fullmatch(value):
         errors.append(f"{where}: {what} 非法，仅允许小写字母、数字、短横线: {value!r}")
         return False
     return True
@@ -55,7 +73,7 @@ def load_yaml(path: Path, errors: list):
     """safe_load 读取 YAML；解析失败返回 None 并记录错误。"""
     try:
         with path.open("r", encoding="utf-8") as f:
-            return yaml.safe_load(f)
+            return yaml.load(f, Loader=UniqueLoader)
     except FileNotFoundError:
         errors.append(f"{path}: 文件不存在")
         return None
@@ -99,7 +117,7 @@ def validate_course(course_path: Path, content_dir: Path, errors: list) -> list:
         errors.append(f"{where}: 顶层必须是映射")
         return order
 
-    if course.get("schemaVersion") != SCHEMA_VERSION:
+    if not is_int(course.get("schemaVersion")) or course.get("schemaVersion") != SCHEMA_VERSION:
         errors.append(f"{where}: schemaVersion 必须为 {SCHEMA_VERSION}")
     if not is_nonempty_str(course.get("courseId")):
         errors.append(f"{where}: courseId 必须为非空字符串")
@@ -161,8 +179,8 @@ def _validate_quiz(step: dict, swhere: str, errors: list, question_ids: dict):
         errors.append(f"{qwhere}: questionId 全站重复，首次出现在 {question_ids[qid]}")
     else:
         question_ids[qid] = swhere
-    if not is_int(step.get("revision")):
-        errors.append(f"{qwhere}: revision 必须为整数")
+    if not is_int(step.get("revision")) or step.get("revision") < 1:
+        errors.append(f"{qwhere}: revision 必须为正整数")
     if not is_nonempty_str(step.get("promptMd")):
         errors.append(f"{qwhere}: promptMd 必须为非空字符串")
     if not is_nonempty_str(step.get("explanationMd")):
@@ -218,7 +236,7 @@ def validate_lesson(lesson_id: str, lesson_path: Path, order: list, errors: list
         errors.append(f"{where}: 顶层必须是映射")
         return None
 
-    if lesson.get("schemaVersion") != SCHEMA_VERSION:
+    if not is_int(lesson.get("schemaVersion")) or lesson.get("schemaVersion") != SCHEMA_VERSION:
         errors.append(f"{where}: schemaVersion 必须为 {SCHEMA_VERSION}")
     lid = lesson.get("id")
     if check_id(lid, "课程 id", where, errors):
@@ -228,8 +246,8 @@ def validate_lesson(lesson_id: str, lesson_path: Path, order: list, errors: list
         errors.append(f"{where}: title 必须为非空字符串")
     if not is_nonempty_str(lesson.get("goal")):
         errors.append(f"{where}: goal 必须为非空字符串")
-    if not is_int(lesson.get("revision")):
-        errors.append(f"{where}: revision 必须为整数")
+    if not is_int(lesson.get("revision")) or lesson.get("revision") < 1:
+        errors.append(f"{where}: revision 必须为正整数")
     status = lesson.get("status")
     if status not in STATUSES:
         errors.append(f"{where}: status 非法 {status!r}，仅允许 draft/published")
@@ -321,6 +339,17 @@ def validate_all(content_dir: Path, config_path: Path, course_path: Path) -> lis
     for lesson_id in order:
         validate_lesson(lesson_id, content_dir / "lessons" / f"{lesson_id}.yaml",
                         order, errors, question_ids)
+    for path in sorted((content_dir / "lessons").glob("*.yaml")):
+        if path.stem not in order:
+            errors.append(f"{path}: 课程文件未在目录中声明")
+    if errors:
+        return errors
+    model = load_model(content_dir, course_path)
+    for lid, lesson in model["lessons"].items():
+        if lesson.get("status") == "published":
+            for pre in lesson.get("prerequisites") or []:
+                if isinstance(pre, str) and model["lessons"].get(pre, {}).get("status") == "draft":
+                    errors.append(f"{lid}: published 课程依赖 draft 前置课 {pre}")
     return errors
 
 

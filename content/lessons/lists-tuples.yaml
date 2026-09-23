@@ -2,7 +2,7 @@ schemaVersion: 1
 id: lists-tuples
 title: 列表与元组
 goal: 用合适的有序容器保存多项数据，并通过循环生成新的结果列表；分清 append 返回 None、元组二元记录拆包和无参数 split()。
-revision: 1
+revision: 2
 status: published
 prerequisites: [strings, loops]
 steps:
@@ -17,6 +17,7 @@ steps:
     title: 核心机制：列表可改，append 不交回列表
     bodyMd: |
       列表保留放入顺序、允许重复、可以修改元素或追加。`append` 是原地修改：它改变原列表，操作结果是 `None`，不能把结果接回原变量——`items = items.append("api")` 会让 items 变成 None。
+      列表也用 `items[0]` 读取首项，`len(items)` 查看项数，`items[0] = "sql"` 修改首项；切片沿用字符串的左闭右开规则。
       元组用固定位置保存一条记录，如 `("python", 30)`；它的元素位置不能重新赋值。简单拆包把固定数量的元素分别绑定给名字：`name, minutes = record`。
       无参数 `split()` 把文本按空白（空格、换行、制表符）切成字符串列表，连续空白只算一次分隔。
 

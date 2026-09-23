@@ -2,7 +2,7 @@ schemaVersion: 1
 id: exceptions
 title: 读 traceback 与处理异常
 goal: 根据错误信息找到真正失败的操作，把"输入不符合约定"和"程序写错了"分开，只对预期的输入问题做局部处理。
-revision: 1
+revision: 2
 status: published
 prerequisites:
   - types-and-none
@@ -21,7 +21,7 @@ steps:
     title: 核心机制：先定类型，再找失败行
     bodyMd: |
       traceback 是解释器留下的事故路线图：从上到下展示调用路径，最后一行给出异常类型和一句话说明。定位顺序不能反：先看最后一行确定是什么错，再回到中间找到自己代码里实际执行失败的那一行；最上面的调用行只说明"怎么走过来的"，不是失败位置。
-      异常一旦发生，try 里面失败行之后的语句不再执行，直接跳到匹配的 except。except 后面写什么类型就只接住什么类型，没写明的会继续向上报。所以只捕获你已经想好怎么处理的异常。`except ValueError as exc` 是把接住的异常交给名字 exc，本课只用到看类型的最小读法。
+      异常一旦发生，try 里面失败行之后的语句不再执行，直接跳到匹配的 except。except 后面写什么类型就只接住什么类型，没写明的会继续向上报。所以只捕获你已经想好怎么处理的异常。`except ValueError as exc` 是把接住的异常交给名字 exc，本课只要求读懂这种绑定，不展开异常对象的属性。`pass` 表示这里不做任何操作；捕获后只写 pass 会掩盖问题。
       结合旧例认名字：名字没定义过是 NameError，类型对不上操作是 TypeError，字典缺键是 KeyError，文本转不成数是 ValueError。认出名字是第一步，怎么处理看下面的规则。
   - id: s-predict
     type: reveal
@@ -37,7 +37,7 @@ steps:
       try:
           parse_count("bad")
       except ValueError as exc:
-          print(type(exc).__name__)
+          print("ValueError")
       ```
     revealLabel: 先预测，再点开展开实际输出
     revealMd: |

@@ -25,7 +25,7 @@ def main(input_path="input.txt", output_path="report.txt"):
         with Path(output_path).open("w", encoding="utf-8") as f:
             f.write(report)
     except OSError:
-        print("写入报告失败：输出文件未更新。")
+        print("写入报告失败：报告可能不完整，请检查输出文件。")
         return
     print("报告已生成：" + Path(output_path).name)
 

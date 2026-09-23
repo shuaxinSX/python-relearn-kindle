@@ -4,14 +4,13 @@ on:
   push:
     branches: ["main"]
   workflow_dispatch:
+  pull_request:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
-  group: "pages"
+  group: "pages-${{ github.ref }}"
   cancel-in-progress: false
 
 jobs:
@@ -34,11 +33,10 @@ jobs:
       - name: 安装构建依赖
         run: pip install -r requirements-build.txt
 
-      - name: 校验内容
-        run: python tools/validate.py
-
-      - name: 运行测试
-        run: python -m unittest discover -s tests
+      - name: 安装浏览器验收工具（仅开发端）
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
 
       - name: 计算 BASE_PATH
         id: basepath
@@ -51,10 +49,21 @@ jobs:
             echo "base_path=/$REPO/" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: 构建静态站（冒烟）
-        run: python tools/build.py --base-path "${{ steps.basepath.outputs.base_path }}" --out dist
+      - name: 完整 V1 验收
+        run: python tools/audit_v1.py --base-path "${{ steps.basepath.outputs.base_path }}" --out dist
+
+      - name: 保存验收证据
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1-audit
+          path: audit-results/
 
   build:
+    if: github.event_name != 'pull_request'
+    permissions:
+      contents: read
+      pages: read
     runs-on: ubuntu-latest
     needs: test
     steps:
@@ -95,6 +104,9 @@ jobs:
           path: dist
 
   deploy:
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

@@ -30,6 +30,12 @@ class TestBackupValidation(unittest.TestCase):
         self.assertTrue(self.results[name].get("pass"),
                         f"备份校验用例 {name} 未通过：{self.results[name]}")
 
+    def test_all_extended_protocol_boundaries(self):
+        self.assertGreaterEqual(len(self.results), 21)
+        for name in self.results:
+            with self.subTest(case=name):
+                self._assert_pass(name)
+
     def test_valid_backup_ok_with_preview_counts(self):
         """合法备份 ok，preview.read / preview.review 计数正确。"""
         self._assert_pass("valid")
