@@ -99,4 +99,22 @@ check("bad-fields-attempts", function () {
   return validateBackupText(JSON.stringify(s), opts).error === "bad-fields";
 });
 
+
+
+// Additional protocol boundaries; the Python harness requires every case pass.
+[
+ ['arrays', function(s){s.lessons=[];}],
+ ['question-array', function(s){s.questions=[];}],
+ ['record-array', function(s){s.lessons['run-and-bindings']=[];}],
+ ['counts-inconsistent', function(s){s.questions['run-and-bindings-q1'].wrongAttempts=2;}],
+ ['unsafe-integer', function(s){s.questions['run-and-bindings-q1'].attempts=9007199254740992;}],
+ ['bad-id', function(s){s.lastLocation.lessonId='../outside';}],
+ ['revision-zero', function(s){s.questions['run-and-bindings-q1'].revision=0;}]
+].forEach(function(entry){check(entry[0],function(){var s=baseState();entry[1](s);return validateBackupText(JSON.stringify(s),opts).error==='bad-fields';});});
+check('protocol-without-redundant-location',function(){var s=baseState();delete s.questions['run-and-bindings-q1'].lessonId;delete s.questions['run-and-bindings-q1'].stepId;return validateBackupText(JSON.stringify(s),opts).ok;});
+check('history-ids-not-counted',function(){var s=baseState();s.lessons.deleted={completed:true};s.questions.deleted=s.questions['run-and-bindings-q1'];var r=validateBackupText(JSON.stringify(s),opts);return r.ok&&r.preview.read===1&&r.preview.review===1;});
+check('revision-mismatch-in-preview',function(){var s=baseState();s.questions['run-and-bindings-q1'].needsReview=false;var o=Object.assign({},opts,{questionRevisions:{'run-and-bindings-q1':2}});return validateBackupText(JSON.stringify(s),o).preview.review===1;});
+check('deep-input-no-stack-overflow',function(){var text='['.repeat(20000)+'0'+']'.repeat(20000);return validateBackupText(text,opts).ok===false;});
+check('utf8-with-lone-surrogate-limit',function(){return validateBackupText('中'.repeat(44000)+'\ud800',opts).error==='too-large';});
+check('nested-unsafe-key',function(){return validateBackupText('{"schemaVersion":1,"courseId":"python-relearn","settings":{"constructor":{}}}',opts).error==='unsafe-keys';});
 console.log(JSON.stringify(results));

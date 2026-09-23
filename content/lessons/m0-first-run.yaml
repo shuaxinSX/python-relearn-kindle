@@ -1,0 +1,146 @@
+schemaVersion: 1
+id: m0-first-run
+title: 第一次运行 Python
+goal: 能在 PyCharm 里独立完成"新建 .py 文件 → 写 print → 点 Run → 在运行窗口看到输出"的完整流程，并说清代码区和输出区的区别。
+revision: 1
+status: published
+prerequisites: []
+steps:
+  - id: s-goal
+    type: read
+    title: 本课目标：让电脑照你写的做
+    bodyMd: |
+      学完这一课，你要能自己在 PyCharm 里走完一整套动作：新建一个 `.py` 文件，写一行代码，点一下运行，然后在运行窗口里看到结果。
+      先解释两个词。"运行"就是让 Python 把文件里的指令真正执行一遍；"输出"就是执行之后显示出来的文字结果。整节课就围绕这两件事。
+  - id: s-what-is-python
+    type: read
+    title: Python 是什么
+    bodyMd: |
+      Python 是一个程序：它能读懂 `.py` 文件里的指令，并把这些指令一条条执行出来。你写的文件只是文字说明，真正动手干活的是 Python 本身。
+      可以这样理解：你负责"写清楚要做什么"，Python 负责"照着做"。后面每一次点 Run，都是请 Python 来执行你写好的文件。
+  - id: s-py-file
+    type: read
+    title: .py 文件是什么
+    bodyMd: |
+      `.py` 文件就是一个普通的文本文件，里面写的是给 Python 看的指令。文件名最后的 `.py` 这三个字母，是在告诉电脑："这个文件里写的是 Python 能读懂的指令"。
+      双击它通常看不到什么有用的东西——它不是用来"打开看"的，而是用来"交给 Python 执行"的。没有 Python 来执行，它就只是一段文字。
+  - id: s-pycharm
+    type: read
+    title: PyCharm 的角色：写代码的地方，加一个运行按钮
+    bodyMd: |
+      PyCharm 在学习中只扮演两个角色：一个是写代码的地方，一个是"点一下就运行"的按钮。你不需要先学会它的全部功能，会用这两样就够了。
+      新建文件：在左侧项目窗口的空白处点右键，选择 New → Python File，输入文件名比如 `hello`，按回车。文件名建议只用小写字母和下划线，不要用中文和空格。
+      新文件会出现在中间的编辑器里。这片能打字的地方叫"代码区"：你的指令都写在这里。记住，它只管写，不管显示结果。
+  - id: s-first-code
+    type: read
+    title: 写第一行代码：print("Hello")
+    bodyMd: |
+      在代码区输入下面这一行：
+
+      ```python
+      print("Hello")
+      ```
+
+      `print` 是一条让 Python 显示文字的指令。括号里用引号包起来的文字，Python 会照原样显示出来。引号里写什么，屏幕上就出现什么：
+
+      ```python
+      print("Hello, 世界")
+      ```
+
+      注意三点：引号必须是英文半角引号，不能是中文引号；括号要成对出现；一行写完就够了，不用加别的。
+      写完先别急着点运行——下一题先预测：结果会出现在哪里？
+  - id: s-press-run
+    type: reveal
+    title: 点 Run 之后，发生了什么
+    bodyMd: |
+      点一下编辑器右上角的绿色 ▶ Run 按钮（也可以在文件名上点右键选 Run）。先预测：屏幕上哪里会多出 `Hello` 这几个字？是代码区，还是别的地方？
+    revealLabel: 先预测，再点开展开
+    revealMd: |
+      点 Run 之后，Python 从上到下把 `hello.py` 读了一遍，执行了 `print` 这条指令，于是下方弹出了运行窗口，里面出现了：
+
+      ```
+      Hello
+      ```
+
+      注意区分两个地方：上面写代码的地方是"代码区"，只显示你写的东西；下面新出现的、专门显示结果的地方是"运行窗口"，`Hello` 出现在运行窗口里的"输出区"。代码区只管写，输出区只管看。
+  - id: s-two-lines
+    type: read
+    title: 两行代码：从上到下依次执行
+    bodyMd: |
+      文件里可以写多行，Python 会从上到下依次执行，一行显示完再显示下一行：
+
+      ```python
+      print("你好")
+      print("早上好")
+      ```
+
+      运行后输出区里出现两行，先是"你好"，再是"早上好"。顺序就是文件里从上到下的顺序——这就是"从上到下执行"的意思。
+  - id: s-rerun
+    type: read
+    title: 改完代码，必须重新点一次 Run
+    bodyMd: |
+      把 `print("Hello")` 改成下面这样，文件也保存了：
+
+      ```python
+      print("再见")
+      ```
+
+      这时如果去看输出区，里面显示的还是旧的 `Hello`。因为输出区只记录"上一次运行"的结果：文件改了，Python 不会自己再执行一遍。
+      铁律：改完代码，想看到新效果，必须重新点一次 Run。重新运行后，输出区才会变成新的"再见"。
+  - id: s-quiz-1
+    type: quiz
+    title: 小测一：Hello 会出现在哪里
+    questionId: m0-first-run-q1
+    revision: 1
+    promptMd: |
+      你在 `hello.py` 的代码区写了 `print("Hello")`，然后点了 Run。`Hello` 这几个字会出现在屏幕的哪里？
+    options:
+      - id: a
+        textMd: 代码区，就是写代码的那片编辑器里
+        explanationMd: 错在把"写指令的地方"和"看结果的地方"混为一谈。代码区只显示你写的东西，执行结果不会写回到代码区里。
+      - id: b
+        textMd: 运行窗口里的输出区
+        explanationMd: 正确。点 Run 后 Python 执行文件，专门显示结果的运行窗口会打开，`Hello` 出现在其中的输出区。
+      - id: c
+        textMd: 文件名 `hello` 上面
+        explanationMd: 错在误解了文件名的用途。文件名只用来标识"这是哪个文件"，它不会显示执行结果。
+      - id: d
+        textMd: 什么都不发生，屏幕上没有任何变化
+        explanationMd: 错在把"没点对"当成了正常现象。点了 Run 却毫无反应，通常是按钮没点对或者代码没写对；正常情况下运行窗口会打开并显示 `Hello`。
+    correctOptionId: b
+    explanationMd: |
+      执行结果有专门的地方看：运行窗口里的输出区。代码区只管写，输出区只管看，文件名只管标识文件。点 Run 之后去运行窗口找输出，这是以后每次运行都要用的动作。
+  - id: s-quiz-2
+    type: quiz
+    title: 小测二：改了代码，输出会自己变吗
+    questionId: m0-first-run-q2
+    revision: 1
+    promptMd: |
+      你把 `print("Hello")` 改成了 `print("早上好")`，文件也保存了，但没有点 Run。这时运行窗口的输出区里显示的还是 `Hello`。为什么？
+    options:
+      - id: a
+        textMd: 因为输出不会自动变，必须重新点一次 Run
+        explanationMd: 正确。输出区只记录上一次运行的结果；文件改了，Python 不会自己再执行一遍，必须手动重新点 Run。
+      - id: b
+        textMd: 因为必须先关掉 PyCharm 再重新打开，输出才会更新
+        explanationMd: 错在把"重新运行"想成了"重启软件"。不需要关 PyCharm，重新点一次 Run 就够了。
+      - id: c
+        textMd: 因为要等一会儿，输出区会自动刷新成新文字
+        explanationMd: 错在以为输出区会自己刷新。它不会：它只保存上一次运行产生的结果，等再久也不会变成新文字。
+      - id: d
+        textMd: 因为同一行代码只能运行一次，改了也没用
+        explanationMd: 错在误解了运行的次数限制。同一段代码可以反复运行很多次，每次点 Run 都是一次全新的执行，都会按当前文件内容重新来一遍。
+    correctOptionId: a
+    explanationMd: |
+      记住这条铁律：改完代码，旧输出不会自动变，必须重新点 Run。运行窗口里看到的永远是"上一次运行"的结果，想看到新代码的效果，就再运行一次。
+  - id: s-recap
+    type: read
+    title: 回顾与独立任务
+    bodyMd: |
+      本课要点：
+      1. Python 是一个程序：读懂 `.py` 文件里的指令并执行。
+      2. `.py` 文件是写给 Python 看的指令文本，要交给 Python 执行才有意义。
+      3. PyCharm 里写代码、点一下 Run；写代码的地方是代码区，看结果的地方是运行窗口里的输出区。
+      4. `print("...")` 让引号里的文字照原样显示出来；多行从上到下依次执行。
+      5. 改完代码必须重新点 Run，旧输出不会自己变。
+      独立任务（在 PyCharm 完成）：把 `Hello` 改成你自己的名字，点 Run，在输出区找到它；再试试写两行 `print`，观察输出有几行，体会"从上到下执行"是什么意思。

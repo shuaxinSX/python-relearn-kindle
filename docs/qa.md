@@ -1,49 +1,183 @@
-# 验收记录（QA）
+# 完整 V1 独立验收记录
 
-> 里程碑 1（样课 `run-and-bindings` + 静态构建链 + Pages 预览）的验收记录。
-> 记录日期：2026-09-23。状态分为"桌面已验收"与"Kindle 待验收"两部分；
-> 在实机验证完成前，不写"Kindle 完全兼容"。
+审查日期：2026-09-23。基线：`2e76c00200afae94047fc72ae5765a65844f541a`。
+依据仓库根目录两份正式规格；与用户提供的 Desktop 原件逐字节一致。
+本记录取代旧的“里程碑 1 / 样课”报告，不沿用其通过结论。
 
-## 1. 桌面已验收（2026-09-23，构建机本地）
+## 结论与证据边界
 
-| # | 项目 | 结果 |
-|---|---|---|
-| 1 | 内容校验负例 | `tests/test_validate.py` 20 个负例全部通过：每个负例返回码非零，且错误信息含文件路径/步骤 ID/题目 ID（缺必填字段、字段类型错、未知步骤类型、步骤 ID 课内重复、课程 ID 目录重复、题目 ID 全站重复、选项 ID 题内重复、correctOptionId 不存在、题目/选项空解析、选项不足 2 个/超过 4 个、非法 status、目录缺课程文件、前置课不存在/不在前面、一课两个 practice、reveal 缺 revealLabel、siteId 为空、basePath 不合规）；1 个合法正例返回码 0 |
-| 2 | 构建 | `python tools/build.py` 返回码 0；生成 6 页（index/course/lessons/run-and-bindings/review/settings/404）+ 2 个哈希资源 |
-| 3 | 内链/锚点 | 所有 `href`/`src` 产物链接以 basePath 开头，无硬编码根路径；`#` 锚点在本页均有对应 id；`--base-path /myrepo/` 二次构建下内链/资源/PRL_CONFIG 均带 `/myrepo/` 前缀 |
-| 4 | 体积预算 | HTML 最大 16.4 KiB（样课页，预算 60 KiB）；JS 29.9 KiB（预算 30 KiB）；CSS 3.9 KiB（预算 10 KiB）。全部通过（未压缩） |
-| 5 | 全量单元测试 | `python -m unittest discover -s tests`：**62 个测试全部通过，0 失败**（validate 21、build 16、内容蓝图 11、fixtures 运行 1、备份校验 8、reader 静态 5） |
-| 6 | fixtures 真实运行 | `content/fixtures/run-and-bindings/` 下 5 个脚本（demo/demo_rerun/q1/q2_correct/q2_wrong_order）用 `sys.executable` 实际运行：退出码均为 0，stdout 与同名 `.expected.txt` 逐字节一致 |
-| 7 | 样课蓝图符合性 | 7 步、类型仅 read/reveal/quiz、步骤 ID 顺序符合蓝图；两题题号 `run-and-bindings-q1/q2`、正确项 b/a；q1 正确选项含 `2 3`、q2 含 60；每题 3—4 个选项、解析非空；错选项解析覆盖蓝图误解关键词（联动/只执行一次/同时更新；重算/自动/更新）；reveal 步骤有 revealLabel |
-| 8 | 本地 HTTP 预览 | `python3 -m http.server --directory dist` 本地服务：`/`、`/course.html`、`/lessons/run-and-bindings.html`（含 `#s-quiz-1` 锚点）、`/review.html`、`/settings.html`、`/404.html` 均返回 200；不存在的路径返回 404；样课页含 2 处 `answer-zone` 答案区 |
-| 9 | 备份校验 node 实测 | `node` 真实 `require("…/assets/reader.js")` 取 `validateBackupText`：合法备份 ok 且 preview.read=1、preview.review=1；超 128 KiB→too-large、坏 JSON→invalid-json、`__proto__` 注入→unsafe-keys、schemaVersion=2→unknown-version、courseId 不符→course-mismatch、fontSize 非法/attempts 负数→bad-fields，8 项全部通过 |
-| 10 | 无脚本静态可读 | 样课页静态 HTML 含全文与 `answer-zone` 答案区（含"绑定快照""中间结果不会自动重算"等解析与口头检查题）；quiz 块 `data-correct-option` 与 YAML 的 correctOptionId 一一对应；`node --check assets/reader.js` 通过；ES5 启发式扫描（let/const、=>、反引号、class、fetch(、Promise、async/await、行首 import/export）零命中；源码无 `localStorage.clear()` |
+修复版通过完整本地自动验收，可作为桌面 V1 候选并开始学习。
+**当前线上旧版不能冻结**：审查时 Pages 仍提供基线产物，页面缺少阅读器所需的
+`page-*` body 类，交互初始化被跳过。修复分支合并发布后，须运行部署核对；
+Kindle 实机验收完成前，只能标为“桌面已验收 / Kindle 待验收”。
 
-备注：里程碑 1 只交付样课 1 节。开发规格 §10.1 A10 的"16 课、32 道题、4 项实践"属于后续里程碑，本次不纳入验收；内容协议本身不硬编码 16 课。
+线上地址：[GitHub Pages](https://shuaxinsx.github.io/python-relearn-kindle/)。
+基线发布证据：[Actions 35817964594](https://github.com/shuaxinSX/python-relearn-kindle/actions/runs/35817964594)。
+审查实际读取首页、首课、设置和复习页，均 HTTP 200；其中使用旧资源
+`reader.77168b2b.js`，首页 SHA256 为
+`3d0a8dc29cefb9155b336e8f6892b016898201a87501e75ed1a0e20f9a1a99fb`。
+成功部署记录和 HTTP 200 本身不能证明交互可用。
+最终另对修复构建的全部 24 个文件核对线上：21 个 HTML 仍为旧内容，
+新哈希 JS/CSS 与错误样本尚未上线，部署核对如预期返回失败。
 
-## 2. Kindle 待验收（按开发规格 §10.2）
+机器结果以 `audit-results/v1-audit.json`、同目录 `.tests.log` 为准；
+CI 上传 `v1-audit` artifact，记录源码提交、工作区是否有改动、每项浏览器结果、
+产物大小及 SHA256。报告不自动宣称线上或实机通过。
 
-以下项目必须在用户实际 Kindle Scribe 上验证，当前**全部待验收**。
-实测时记录：**型号/代次、固件版本、网络环境、测试日期**，
-并打开**实际 GitHub Pages 地址**（待部署后填写真实地址，此处不虚构）。
+## 发现并修复
 
-待测清单：
+| 问题 | 修复与防回归 |
+|---|---|
+| 页面类型、首页按钮、末步已读区、实践复选框等模板/脚本选择器不匹配 | 恢复分步、继续、已读与实践状态；真实 DOM 点击并断言保存结果 |
+| quiz 默认表单提交会导航；刷新后复习返回入口丢失 | 处理表单 submit、阻止默认导航，提交只计一次，重做/刷新仍可返回复习 |
+| 存储后续写入失败被吞掉，导入/清除可能覆盖内存或先删旧数据 | 持续显示不可保存提示；替换写入成功才刷新，失败保留旧记录，不删除其他站点键 |
+| 首页与导入预览漏算题目升版，统计含删除记录；损坏状态校验不足 | 以当前课程/题目目录和 revision 统计；保留损坏原文；校验 courseId、对象类型、危险键、数值范围、深度与真实 UTF-8 大小 |
+| 只有样课结构断言，fixtures 与正文可能脱节 | 按正式蓝图验全部 16 课，直接执行 YAML 代码和四项实践，建立逐课审阅记录 |
+| 正文缺少蓝图必教内容或代码在解释前使用 | 补转换、索引边界、参数调用、浅拷贝、join、项目环境最短操作等必要说明；未改变目录、题目数量和实践目标 |
+| 未教能力偷跑和题设缺失 | 移除 pop、list.count、临时文件/二进制样本制造等学生端偷跑；提供预制坏 UTF-8 样本；补 paths-text 输入与成功写入前提 |
+| 测试题有歧义，参考方案上下文不完整 | Q16-1 明确针对合法零值；模块代码补实际函数体；P4 补文件组装/import，修正报告行数与写失败提示 |
+| 静态降级露出无效控件、初始化失败留下门控；窄屏字段集/数据表可读性差 | 无 JS 保留全文、选项、答案；失败撤销门控；修复布局，P1 表格转成同内容列表 |
+| 内链检查遗漏 src/错误子路径，JS 接近预算 | 检查全部页面 href/src/锚点；JS 只去缩进和空行，以 ES5 AST 等价验证，无框架或大规模重构 |
 
-1. 打开实际 Pages 地址，首页可正常显示"开始学习"。
-2. 三档字号（22/26/30）切换有效，排版不错乱。
-3. 样课内连续切换步骤（上一部分/下一部分），即时切换且锚点更新。
-4. reveal 步骤点击展开答案/结果。
-5. 小测选项提交：未选提交有行内提示；提交后锁定并显示解析。
-6. 代码块可单独横向滚动，页面无整页横滚。
-7. 错题进入复习页；显式重新作答答对后移出复习列表。
-8. 睡眠唤醒后页面状态正常。
-9. 关闭浏览器后重新打开，继续位置正确（断点继续）。
-10. 导出备份 → 清除 → 导入恢复，全流程可用。
+16 节有正文修订的课程 revision 均递增至 2；影响作答的四题
+`comprehensions-sort-q1`、`paths-text-q2`、`modules-venv-q1`、
+`tests-boundaries-q1` 的题目 revision 递增至 2。既有已读状态保留。
 
-**阻断项标准**（出现即列为阻断，不靠加功能回避）：
+## 自动覆盖
 
-- 阻断阅读（白屏、正文不可读、步骤无法切换）；
-- 无法准确点击（按钮/选项点击区失效或严重错位）；
-- 正常环境下无法保存（localStorage 可用时仍丢进度，且非浏览器策略所致）。
+完整入口：`python tools/audit_v1.py`。最终本地运行：**84 个 unittest 方法，
+0 失败、0 错误、0 跳过**；方法内部包含下列全量子用例。
+浏览器为 Chromium；根路径与 `/python-relearn-kindle/` 各 25 场景，共 50 场景。
 
-桌面缩小窗口、慢速网络、设备模拟只能做预检，不等于 Kindle 实测。
+| 规格/检查面 | 实际证据 |
+|---|---|
+| A1–A2 首页与继续 | 新用户、已有记录、完成全部课程；直接锚点、刷新、前进/后退、删除步骤；同一持久浏览器配置关闭并重新启动 |
+| A3 答题与复习 | 不选不计数、重复提交/刷新不重复计数、错误保留到显式重做答对；复习不改正常阅读位置；极端导入计数不溢出 |
+| A4 进度 | 已读/答题/实践独立，已读与实践可取消，目录状态与持久化一致 |
+| A5–A6 备份和降级 | 导出/清除/预览/确认恢复，错误导入不覆盖；读取/初次写入/后续写入失败；损坏与错误版本保留原文；禁 JS、阻断脚本、初始化异常仍全文可读 |
+| A7 内容演进 | 按永久 ID 保留改名/重排后的状态；旧题 revision 重新作答并重置该题次数；删除记录不参与统计；复习 10 项分页 |
+| A8 路径与资源 | 21 个真实 HTML、两种 basePath、href/src/锚点、错误样本下载链接；静态 404，无 SPA 兜底；部署比对器用成功/旧文件/404 三种 HTTP 情况回归 |
+| A9 Kindle 原则预检 | 全部课程每一步、展开内容及其他页面，320/600/800/1024 CSS px 与最大字号无整页横滚；22/26/30 字号保存，代码 pre 缩进，按钮尺寸、键盘展开与提交；ES5 实际解析 |
+| A10 完整教材 | 蓝图原文提取的 16 课顺序、4 模块、精确前置关系；全部 published、32 唯一 quiz、每课 2 题、4 实践固定归属；草稿不进入产物/统计 |
+| A11 体积与请求 | 最大 HTML 29.1 KiB、JS 27.5 KiB（28182 字节）、CSS 4.7 KiB；各项预算通过；断网后当前课切步/展开/答题可用且无新增请求 |
+| 81 组 fixtures | Python 3.13 在独立临时目录逐组真实运行，退出码/stderr/stdout 与预期逐字节核对；缺失或孤立配对失败 |
+| 136 个教材 Python 围栏 | 每个有明确执行归属；正文/题干/选项直接从 YAML 读取，核对输出、状态或特定异常；多文件、依赖上下文和实践分块实际组装执行 |
+| P1–P4 | 固定输入的独立完整输出；空输入、空白、零、负数、阈值、重复、顺序；P3 输入不变/两次独立调用/每条仅清洗一次；P4 导入无副作用、重复入口、输入缺失/坏 UTF-8/读写失败、程序错误不吞掉 |
+
+故意死循环题不会原样无限执行：检查原文存在并执行题目要求的修复版。
+环境选择题、方案判断、教学解释不能靠执行表达式证明，已逐题对照题设人工审核。
+AST 边界检查只覆盖已编码的语法/方法规则；全文语义依靠本次逐课阅读以及
+`docs/v1-review.json` 的内容指纹防止后续修改绕过复审。指纹不是自动语义证明。
+
+## 保留为编辑取舍
+
+未重新设计课程，也没有把后续内容加入 V1。需要实读后判断的项目见
+[可读性清单](v1-readability.md)：部分代码超过 40 列，三个完整模块/异常处理块
+超过 12 行；P4 任务说明约 585 汉字（去掉代码围栏），超过 350 字建议值。
+拆分任务或缩短解释涉及教学取舍，本次只记录；完整上下文与现有解法保持。
+也未自行加入自动测试框架课程、PWA、云同步或更复杂的文件事务方案。
+
+## Kindle Scribe 待验收
+
+以下均未在实机运行，不能用 Chromium 模拟替代。发布修复版后，在实际设备记录
+型号/代次、固件版本、网络环境、日期和发布提交，再逐项记录结果：
+
+- 实际 Pages 地址可访问，首页与正文可读。
+- 三档字号、连续切步、展开答案、选项点击与提交可准确操作。
+- 代码块可单独横向滚动，缩进保留，无正文遮挡或整页横滚。
+- 错题重做、已读/实践撤销、学习位置和进度保存正确。
+- 睡眠唤醒、关闭浏览器再打开仍能继续。
+- 备份导出→清除→导入恢复完整可用。
+
+阻断标准：阅读不可用、无法准确点击、正常可用存储环境仍丢记录。
+这些闭环完成后，才能冻结 Kindle V1；目前修复版的桌面学习不依赖新增产品功能。
+
+## M0 零基础准备模块（2026-09-23 追加）
+
+> 本章节为追加记录；上方用户验收记录原文一字未动。
+
+### 新增内容
+
+- 3 节新课：`content/lessons/m0-first-run.yaml`（第一次运行 Python）、
+  `content/lessons/m0-reading-code.yaml`（看懂代码的基本样子）、
+  `content/lessons/m0-when-errors.yaml`（出错了怎么看）。
+  均为 `published`、前置为空；`m0-when-errors` 末步含 1 个实践
+  （7 步人工流程：写→运行→改字→再运行→故意删引号→读报错→修复）。
+- 12 对 fixtures：`content/fixtures/m0-{first-run,reading-code,when-errors}/`。
+- `content/course.yaml` 新增 `m0` 模块（排首位），m1—m4 原样。
+- `templates/index.html` 首页入口调整（用户亲手改）：
+  `id="home-primary"` 移到第一个入口"从 M0 开始"，
+  reader.js 的动态改写（开始学习/继续学习/重新查看课程）不再吃掉
+  "我以前用过 Python → 直接开始正式课程"入口；`assets/reader.js` 一行未动。
+
+### 测试策略：Core / M0 分口径（不删断言）
+
+- `tests/test_v1.py`：模块断言改为 `['m0','m1','m2','m3','m4']`，
+  `MODEL['order']` 为 M0 三课 + 原 16 课；
+  16/32/4 核心断言作用域限定 16 课（M0 排除在计数外）；
+  新增 M0 严格 AST 检查（围栏里只许 print/字符串/注释，
+  for/while/List/Dict/推导式/装饰器/await 等全禁）；
+  新增 M0 断言：3 课 published、无前置、
+  quiz ID 为 `m0-*-q1/q2` 且答案锚点为 b/a、b/b、a/a（内容侧已独立确认）、
+  `m0-when-errors` 含 1 个 practice 且为最后一步。
+- `tests/test_examples.py`：81 拆为**核心课 81 对 + M0 12 对 = 93**，两个数字分别断言。
+- `tests/test_content_examples.py`：M0 的 13 个 Python 围栏全部补 CASES
+  （独立执行归属与预期输出；含 practice 的 2 个可运行解法块）。
+- 新增 `tests/test_m0.py`：示例≤5 行、禁用知识清单
+  （list/dict/set/def/try/import/for/while/列表/字典/函数/变量等）不出线、
+  小测"查操作不查术语"抽查（6 题题干锚定可观察行为）、
+  实践 7 子任务（任务编号与验收清单各 7 条）、
+  专业词首次出现有解释抽查（"运行"/"输出"/"注释"）。
+- 新增 `tests/test_core_frozen.py`：16 核心课 YAML 的 sha256 新 pin
+  （取自当前未动过的基线文件，与旧印章 pin 一致），任何改动必红；
+  这是新 pin，不是改旧印章。
+- `tools/audit_v1.py`：inventory 拆 `core`（16 课/32 题/4 实践）
+  与 `m0`（3 课/6 题/1 实践）两个口径分别报告，两者都过才算验收通过；
+  manual 保留"Kindle Scribe 待验"。
+- `tests/test_build.py`：页面数断言 21→24（测试改名
+  `test_all_twenty_four_pages_exist`）。
+- `tests/browser_driver.js`：A1 跟随 M0-1 真实步骤
+  （`s-mechanism`→`s-what-is-python`，共 3 处）；
+  A7 题目数 32→38、分页末页 `li` 数 2→8、已读统计 16→19。
+- `tests/test_practices.py` 未改：M0 实践是 PyCharm 人工流程
+  （纸笔验收清单），没有可执行的参考解法；
+  其两个 Python 围栏已由 `test_content_examples.py` 的 CASES 执行覆盖。
+
+### 印章处理（`docs/v1-review.json` 绝不改）
+
+- 印章测试改为盯死 **18 个冻结文件**（2 份规格 + 16 核心课 YAML），
+  逐个比对 sha256，保留"内容/规格变更后须重新人工审核并更新审阅记录，
+  不能自动重算签名冒充审核"报错文案；
+  JSON 内旧的 `content/course.yaml` 签名保留作历史记录，测试显式跳过它。
+- `course.yaml` 的 M0 变更由新测试
+  `test_course_yaml_m0_addition_is_human_approved` 覆盖：
+  用 `git show HEAD:content/course.yaml` 取旧版，
+  断言差异恰好是新增 m0 模块（m1—m4 的 lessonIds 原样），
+  注释写明这是用户批准的 M0 变更。
+
+### 验证结果
+
+- `python tools/validate.py`：零错误。
+- 全量 unittest：93 个测试方法；非浏览器 92 个全部通过（含新增
+  `tests/test_m0.py` 5 个、`tests/test_core_frozen.py` 1 个、
+  `tests/test_v1.py` 新增 3 个）。
+- 浏览器测试（`tests/test_browser.py`，A1—A11 共 50 场景）：
+  本环境无法下载 Playwright Chromium 二进制
+  （`storage.googleapis.com` 请求持续超时，无系统 Chromium 可用），
+  未能执行——如实记录，未静默跳过。
+  `tests/browser_driver.js` 的 A1/A7 更新已按 M0 新步骤与新计数改好，
+  待有 Chromium 的环境（CI/用户本机）运行验证；
+  该测试在缺浏览器时是失败而非跳过，信号不会丢失。
+
+- `python tools/validate.py`：零错误。
+- 全量 unittest：93 个测试方法；非浏览器 92 个全部通过。
+- 体积：构建压缩后的 `dist` 产物 `reader.<hash>.js` 精确 **28182 字节**
+  （27.5 KiB），30 KiB（30720 字节）预算通过，余量 2538 字节；
+  源码 `assets/reader.js` 32217 字节（未压缩，不计入预算，未改动）；
+  M0 三课 HTML 均 ≤ 60 KiB 预算（最大 22.7 KiB）。
+
+### Kindle 实机待验（M0 同样纳入）
+
+M0 三课页面与上方"Kindle Scribe 待验收"清单同标准：
+三档字号、连续切步、代码块横向滚动、已读/实践状态保存、
+睡眠唤醒后继续。实机通过前，M0 只标"桌面已验收"。

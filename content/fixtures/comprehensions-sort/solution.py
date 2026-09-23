@@ -9,7 +9,6 @@ def clean_record(record):
         return None
     return {"name": name, "minutes": minutes}
 
-
 def clean_records(records):
     result = []
     for record in records:
@@ -21,7 +20,6 @@ def clean_records(records):
 
 def minutes_key(record):
     return record["minutes"]
-
 
 records = [
     {"name": " Python ", "minutes": 30},

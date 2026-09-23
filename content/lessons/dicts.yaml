@@ -2,7 +2,7 @@ schemaVersion: 1
 id: dicts
 title: 字典读取、更新与遍历
 goal: 用“键对应值”的方式保存记录，或在循环中正确累计每个标签的出现次数；分清 get 不插入键、in 查键、items 拆包。
-revision: 1
+revision: 2
 status: published
 prerequisites: [lists-tuples]
 steps:
@@ -18,7 +18,7 @@ steps:
     bodyMd: |
       字典按键访问，不按位置访问；相同键再次赋值是更新，不是新增。`d[key]` 在缺键时会失败（报 `KeyError`，只要求识别，处理留到 13 课）；`d.get(key, default)` 在缺键时返回 default，但不会把这个键写进字典。
       `key in d` 查的是键，不是值。直接遍历字典得到的是键；`d.items()` 一次取得键值对，配合拆包写成 `for k, v in d.items()`。
-      字典保留插入顺序，但不自动按键排序；示例键只用字符串。
+      字典保留插入顺序，但不自动按键排序；示例键只用字符串，列表不能作键。已有键的值为 None 时，get 返回 None，default 只在缺键时使用。
 
       ```python
       record = {"name": "python", "minutes": 30}

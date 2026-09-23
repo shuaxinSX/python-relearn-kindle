@@ -1,0 +1,9 @@
+{
+  "name": "python-relearn-kindle-audit",
+  "private": true,
+  "description": "Build-time acceptance tools only; nothing from node_modules is shipped.",
+  "devDependencies": {
+    "acorn": "8.18.0",
+    "playwright": "1.63.0"
+  }
+}

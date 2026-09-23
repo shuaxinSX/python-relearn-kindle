@@ -2,7 +2,7 @@ schemaVersion: 1
 id: comprehensions-sort
 title: 简单推导式与排序 key
 goal: 用单层推导式清楚表达转换与过滤规则；用命名函数作排序键得到稳定顺序。
-revision: 1
+revision: 2
 status: published
 prerequisites: [dicts, functions, alias-copy]
 steps:
@@ -17,7 +17,7 @@ steps:
     title: 核心机制：推导式是循环的紧凑写法，key 是比较依据
     bodyMd: |
       一层列表推导式可以展开成已经会写的 for/if/append：`for` 取项、`if` 在追加之前过滤、`for` 前面的表达式决定收集什么。过滤发生在追加之前，不通过滤的项根本不会被追加。
-      sorted 产生一个新列表，原列表不动；list.sort 原地排序并返回 None。key 要的是"从每项提取比较依据"的函数本身——写函数名 `minutes_key`，不要写成 `minutes_key()` 立即调用。分钟数相同的项保持原来的相对顺序。
+      sorted 产生一个新列表，原列表不动；list.sort 原地排序并返回 None。key 要的是"从每项提取比较依据"的函数本身——写函数名 `minutes_key`，不要写成 `minutes_key()` 立即调用。分钟数相同的项保持原来的相对顺序。传 `reverse=True` 改为降序，同键仍保序；不传时默认升序。
 
       ```python
       def minutes_key(record):
@@ -90,7 +90,7 @@ steps:
     type: quiz
     title: 小测一：选出等价的普通循环
     questionId: comprehensions-sort-q1
-    revision: 1
+    revision: 2
     promptMd: |
       ```python
       raw = [" A ", "", "B"]
@@ -114,12 +114,11 @@ steps:
           ```python
           cleaned = []
           for x in raw:
-              cleaned.append(x.strip().lower())
-              if x.strip():
-                  cleaned.pop()
+              if x.strip() == "":
+                  cleaned.append(x.strip().lower())
           ```
           result 是 `["a", "b"]`
-        explanationMd: 对应"先追加再过滤"的错误理解：这段把通过过滤的项又弹出了，最终只剩 `[""]`；推导式的 if 在追加之前判断，不通过的项根本不会被追加，不存在"追加了再删"这一步。
+        explanationMd: 对应"过滤条件写反"的错误理解：这段只保留清洗后为空的项，最终得到 `[""]`；题目要保留非空项，判断应为 `if x.strip()`。
       - id: c
         textMd: |
           ```python

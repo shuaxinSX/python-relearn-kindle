@@ -2,7 +2,7 @@ schemaVersion: 1
 id: alias-copy
 title: 可变性、别名、浅拷贝
 goal: 在修改列表、字典或函数参数之前，判断哪些名字共享同一对象、一次复制只复制了哪一层。
-revision: 1
+revision: 2
 status: published
 prerequisites: [scope-defaults]
 steps:
@@ -75,6 +75,21 @@ steps:
 
       追踪：前两行与主例相同，两个名字起初指向同一字典；第 3 行是重新绑定：把 view 的标签从旧字典上撕下来，贴到一个新字典上；旧字典本身没被碰过，record 仍指向它，所以 record["name"] 还是 python。
       结论：原地修改影响所有指向该对象的名字；重新绑定只改变这一个名字的指向。看到 `view["minutes"] = 45` 和 `view = {...}`，要当成两种完全不同的操作：前者改对象，后者换标签。
+  - id: s-copy
+    type: read
+    title: 先看清浅拷贝复制哪一层
+    bodyMd: |
+      `list.copy()` 与 `dict.copy()` 都只新建外层，内部成员仍可能共享。下面 b 的外层是新的，b[0] 和 a[0] 却仍是同一个内层列表；因此输出依次为 `[[1, 9], [2]]`、False。若只对 b 的外层 append，新外层增加项，a 的外层不变。
+
+      ```python
+      a = [[1], [2]]
+      b = a.copy()
+      b[0].append(9)
+      print(a)
+      print(a is b)
+      ```
+
+      参数同理：函数内对传入列表 append 会改到调用者持有的列表。元组的位置不能替换，但其中若放着列表，那个列表仍能修改；“元组不可改”不等于内部所有对象都不可改。
   - id: s-quiz-1
     type: quiz
     title: 小测一：别名与原地修改

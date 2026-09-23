@@ -2,7 +2,7 @@ schemaVersion: 1
 id: functions
 title: 参数与返回值
 goal: 把一段明确处理逻辑写成输入与返回值清楚的函数，并从调用处追踪到返回处。
-revision: 1
+revision: 2
 status: published
 prerequisites: [sets]
 steps:
@@ -17,6 +17,7 @@ steps:
     title: 核心机制：调用时才执行，return 交回结果
     bodyMd: |
       执行 def 只是在建立函数：函数体里的代码此时并不执行，要等到被调用时才真正执行。形参是这一次调用的局部名字，它接收调用时传来的值。
+      位置传参按形参顺序对应；关键字传参用形参名对应。例如定义 `def add(a, b):`、函数体写 `return a + b`，则 `add(2, 3)` 与 `add(b=3, a=2)` 都返回 5。每次调用有自己的局部名字，但传入的对象未必隔离，11 课解释共享。
       return 把结果交回调用处，并结束这一次函数执行。print 只负责把结果显示出来，它不能代替 return；如果函数执行结束时没有执行过带值的 return，调用者拿到的就是 None。
 
       ```python

@@ -26,7 +26,7 @@ CSS_BUDGET = 10 * 1024
 
 HREF_RE = re.compile(r'href="([^"]*)"')
 SRC_RE = re.compile(r'src="([^"]*)"')
-ID_RE = re.compile(r'\bid="([^"]+)"')
+ID_RE = re.compile(r'(?<![-\w])id="([^"]+)"')
 DATA_CORRECT_RE = re.compile(
     r'data-question-id="([^"]+)"[^>]*data-correct-option="([^"]+)"')
 
@@ -59,15 +59,8 @@ class BuildBase(unittest.TestCase):
         cls._tmp.cleanup()
 
     def pages(self):
-        return {
-            "index.html": read_html(self.dist, "index.html"),
-            "course.html": read_html(self.dist, "course.html"),
-            "lessons/run-and-bindings.html":
-                read_html(self.dist, "lessons/run-and-bindings.html"),
-            "review.html": read_html(self.dist, "review.html"),
-            "settings.html": read_html(self.dist, "settings.html"),
-            "404.html": read_html(self.dist, "404.html"),
-        }
+        return {p.relative_to(self.dist).as_posix(): p.read_text(encoding="utf-8")
+                for p in self.dist.rglob("*.html")}
 
 
 class TestBuildOutputs(BuildBase):
@@ -76,13 +69,12 @@ class TestBuildOutputs(BuildBase):
         rc, _ = build_to(self._tmp.name)
         self.assertEqual(rc, 0)
 
-    def test_six_pages_exist(self):
-        """6 页全部生成。"""
-        expected = ["index.html", "course.html",
-                    "lessons/run-and-bindings.html",
-                    "review.html", "settings.html", "404.html"]
-        for rel in expected:
-            self.assertTrue((self.dist / rel).is_file(), f"缺失页面 {rel}")
+    def test_all_twenty_four_pages_exist(self):
+        # 21 个旧页面 + 3 个 M0 页面。
+        from tests.test_v1 import ORDER, M0_LESSONS
+        expected = {"index.html", "course.html", "review.html", "settings.html", "404.html"}
+        expected.update("lessons/" + lid + ".html" for lid in M0_LESSONS+ORDER)
+        self.assertEqual(set(self.pages()), expected)
 
     def test_two_hashed_assets_exist(self):
         """2 个哈希资源存在（reader.js / styles.css 各一）。"""
@@ -138,6 +130,21 @@ class TestInternalLinks(BuildBase):
 
 
 class TestStaticReadability(BuildBase):
+    def test_all_lesson_text_anchors_and_answers_are_static(self):
+        from tests.content_support import MODEL, fields
+        from markdown_it import MarkdownIt
+        md = MarkdownIt('commonmark', {'html': False}).enable('table')
+        for lid in MODEL['order']:
+            html = self.pages()['lessons/' + lid + '.html']
+            for field, text in fields(MODEL['lessons'][lid]):
+                with self.subTest(lesson=lid, field=field):
+                    self.assertIn(builder.render_markdown(md, text), html)
+            expected = {s['questionId']: s['correctOptionId']
+                        for s in MODEL['lessons'][lid]['steps'] if s['type'] == 'quiz'}
+            self.assertEqual(dict(DATA_CORRECT_RE.findall(html)), expected)
+            for s in MODEL['lessons'][lid]['steps']:
+                self.assertIn('id="' + s['id'] + '"', html)
+
     def test_lesson_static_full_text(self):
         """样课页静态 HTML 含全文（含 answer-zone 答案区）：无脚本也可读。"""
         html = self.pages()["lessons/run-and-bindings.html"]
@@ -259,9 +266,28 @@ class TestWorkflowYaml(unittest.TestCase):
         self.assertIn("test", jobs, "workflow 应包含 test job")
         steps = jobs["test"].get("steps") or []
         runs = " ".join(str(s.get("run", "")) for s in steps)
-        self.assertIn("python tools/validate.py", runs)
-        self.assertIn("python -m unittest discover -s tests", runs)
-        self.assertIn("python tools/build.py", runs)
+        self.assertIn("python tools/audit_v1.py", runs)
+        self.assertIn("npm ci", runs)
+        self.assertIn("playwright install --with-deps chromium", runs)
+        self.assertEqual(jobs["build"]["needs"], "test")
+        self.assertEqual(jobs["deploy"]["needs"], "build")
+        self.assertEqual(jobs["deploy"]["permissions"], {"pages": "write", "id-token": "write"})
+        self.assertIn("pull_request", wf.get("on", wf.get(True)))
+
+
+class TestBuildGuards(unittest.TestCase):
+    def test_broken_src_wrong_base_and_missing_anchor_are_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for source in ['<script src="/repo/missing.js"></script>',
+                           '<a href="/wrong.html">bad</a>',
+                           '<a href="#fake">bad</a><p data-id="fake"></p>']:
+                (root/'index.html').write_text(source)
+                self.assertTrue(builder.check_links(root, '/repo/'), source)
+
+    def test_source_cannot_be_used_as_output_directory(self):
+        for target in [REPO_ROOT, REPO_ROOT/'content', REPO_ROOT/'assets']:
+            self.assertEqual(builder.main(['--out', str(target)]), 1)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,239 @@
+schemaVersion: 1
+id: m0-when-errors
+title: 出错了应该怎么看
+goal: 程序运行失败时，能从报错的最后几行读出文件名、行号和错误类型，按"找到位置 → 检查代码 → 修改 → 重新运行"的流程修好并成功运行。
+revision: 1
+status: published
+prerequisites: []
+steps:
+  - id: s-goal
+    type: read
+    title: 本课目标
+    bodyMd: |
+      写代码一定会遇到报错，这节课就是专门练"看报错"。
+      学完这一课，你要能做到：程序运行失败时，不慌，先看报错的最后几行，找出文件名、行号、错误类型这三个信息，然后照着位置把代码改对，再重新运行一次，看到它成功输出。
+  - id: s-error-is-help
+    type: read
+    title: 报错是好事，它在帮你
+    bodyMd: |
+      看到满屏红色字先别紧张：报错不代表你的程序"坏了"，更不代表电脑出问题了。它是 Python 在告诉你"我卡在哪一行了"，好让你去改。
+      把报错当成一张纸条：上面写着"文件里的第几行有问题，是什么问题"。顺着纸条去改，比自己从头猜快得多。学会看纸条，是写代码最重要的基本功之一。
+  - id: s-where-to-look
+    type: read
+    title: 先看最后几行：三个关键信息
+    bodyMd: |
+      报错信息可能很长，不用从头读。**先看最后几行**，那里藏着三个关键信息：
+      1. **文件名**：告诉你出问题的是哪个文件；
+      2. **行号**：比如 `line 2`，告诉你是文件的第几行；
+      3. **错误类型**：比如 `SyntaxError`、`NameError`，告诉你是什么性质的问题。
+      记住顺序：最后几行 → 找到这三样 → 再回头看代码对应的那一行。下面两个例子都按这个顺序解读。
+  - id: s-example-quote
+    type: reveal
+    title: 例子一：漏了一个引号（SyntaxError）
+    bodyMd: |
+      文件 `hello.py` 的内容只有两行，第二行不小心漏了右边的引号（下面是坏掉的代码，**不要照抄运行**，只看它长什么样）：
+
+      ```text
+      print("你好")
+      print("hello)
+      ```
+
+      运行它，Python 会停下来并打印报错。先猜一猜：报错会指向第几行？点开展开看真实运行结果。
+    revealLabel: 点开展开真实运行结果
+    revealMd: |
+      真实运行结果（下面是报错的最后几行，文件名换成了 `hello.py`，行内容和箭头位置都是真实的）：
+
+      ```text
+        File "hello.py", line 2
+          print("hello)
+                ^
+      SyntaxError: unterminated string literal (detected at line 2)
+      ```
+
+      三个信息都在：文件名是 `hello.py`，行号是 `line 2`，错误类型是 `SyntaxError`（写法有问题）。最后一行还在用英文提示"字符串没有结束"，和你漏引号的原因正好对上。
+      解读方法：`line 2` 告诉你先看第 2 行；`SyntaxError` 告诉你这是写法层面的问题，检查标点和引号。把引号补回去，文件就修好了：
+
+      ```python
+      print("你好")
+      print("hello")
+      ```
+  - id: s-example-name
+    type: reveal
+    title: 例子二：引号漏写在名字两边（NameError）
+    bodyMd: |
+      再看另一个文件 `hello.py`，第二行的 `hello` 两边都忘了加引号（坏代码，只看不抄）：
+
+      ```text
+      print("你好")
+      print(hello)
+      ```
+
+      没有引号，Python 就把 `hello` 当成一个名字去找，而不是一段文字。先猜一猜这次错误类型是什么，点开展开看真实运行结果。
+    revealLabel: 点开展开真实运行结果
+    revealMd: |
+      真实运行结果（文件名换成了 `hello.py`，其余都是真实的）：
+
+      ```text
+      你好
+      Traceback (most recent call last):
+        File "hello.py", line 2, in <module>
+          print(hello)
+                ^^^^^
+      NameError: name 'hello' is not defined. Did you mean: 'help'?
+      ```
+
+      注意三点：第一，第一行 `print("你好")` 是对的，所以它先正常输出了"你好"，程序是在第 2 行才停下的；第二，错误类型是 `NameError`，意思是"名字 `hello` 没有被定义过"——因为你没加引号，Python 以为你在用一个不存在的名字；第三，最后一行后半句 `Did you mean: 'help'?` 只是 Python 在瞎猜"你是不是想写 help"，猜错了，不用理它，只看前半句就行。
+      解读方法：`line 2` 定位到第 2 行；`NameError` 提示检查那里是不是把文字错写成了名字（漏了引号）。把引号加上，文件就修好了：
+
+      ```python
+      print("早安")
+      print("hello")
+      ```
+  - id: s-quiz-1
+    type: quiz
+    title: 小测一：读出错误类型
+    questionId: m0-when-errors-q1
+    revision: 1
+    promptMd: |
+      某次运行后，报错的最后几行是：
+
+      ```text
+        File "hello.py", line 2
+          print("hello)
+                ^
+      SyntaxError: unterminated string literal (detected at line 2)
+      ```
+
+      这次的错误类型是什么？
+    options:
+      - id: a
+        textMd: "`SyntaxError`"
+        explanationMd: 正确。报错最后一行开头写的就是错误类型：`SyntaxError`，表示写法有问题。结合 `line 2` 和箭头指向的位置，可以定位到第二行漏了右引号。
+      - id: b
+        textMd: "`NameError`"
+        explanationMd: 错。`NameError` 是"用了不存在的名字"（比如 `print(hello)` 漏写引号）。这一段报错里出现的是 `SyntaxError`，错误类型要读最后一行开头写的词，不能凭感觉猜。
+      - id: c
+        textMd: 拼写检查通过，没有错误类型
+        explanationMd: 错。程序已经停下来并打印了报错，说明运行失败了。"拼写检查通过"对应"没看到报错就认为没问题"的误解：有没有报错要看运行结果，而不是看代码顺不顺眼。
+      - id: d
+        textMd: 程序彻底坏了，错误类型不重要
+        explanationMd: 错，这是"报错=坏了"的误解。报错恰恰给出了修复线索：文件名、行号、错误类型。觉得"坏了"就放弃，等于把纸条撕了；顺着纸条改，几分钟就能修好。
+    correctOptionId: a
+    explanationMd: |
+      错误类型就写在报错最后一行的开头，本题是 `SyntaxError`。看报错的方法是：最后一行读错误类型，`File` 那一行读文件名和行号，然后回到代码的对应行检查。猜和慌都不需要，照着纸条走就行。
+  - id: s-quiz-2
+    type: quiz
+    title: 小测二：line 3 先检查哪里
+    questionId: m0-when-errors-q2
+    revision: 1
+    promptMd: |
+      运行失败，报错里写着 `line 3`。你应该先检查哪里？
+    options:
+      - id: a
+        textMd: 文件的第 3 行代码
+        explanationMd: 正确。`line 3` 就是 Python 告诉你的位置：先看第 3 行，对照报错的错误类型检查那一行的写法。这是"找到位置 → 检查代码"的第一步。
+      - id: b
+        textMd: 文件的第 1 行代码
+        explanationMd: 错，这是"报错位置不准、从头看起"的误解。`line` 后面的数字就是 Python 停下来的位置，先看它指的那一行，效率最高。从第 1 行逐行排查是最后的办法，不是第一步。
+      - id: c
+        textMd: 文件名写得对不对
+        explanationMd: 错。文件名只是告诉你"看哪个文件"，位置信息在行号里。先怀疑文件名是找错了方向：文件名对了代码照样可能写错，关键还是看行号指的那一行代码。
+      - id: d
+        textMd: 重新安装 Python
+        explanationMd: 错，这是"报错=环境坏了"的误解。`SyntaxError`、`NameError` 这类报错都是代码写法的问题，和 Python 装没装好无关。重装解决不了漏引号，改代码才行。
+    correctOptionId: a
+    explanationMd: |
+      `line 3` 的意思就是"第 3 行有问题"，先检查第 3 行。完整流程是：找到位置（文件名+行号+错误类型）→ 检查对应行的代码 → 修改 → 重新运行。不要跳过定位直接重装，也不要从头逐行猜。
+  - id: s-recap
+    type: read
+    title: 记住这个流程
+    bodyMd: |
+      每次运行失败，都走这四步：
+      1. **找到位置**：看报错最后几行，读出文件名、行号（如 `line 2`）、错误类型（如 `SyntaxError`、`NameError`）。
+      2. **检查代码**：打开文件，看行号指的那一行，对照错误类型找问题（`SyntaxError` 查标点引号，`NameError` 查是不是把文字写成了名字）。
+      3. **修改**：只改有问题的那一行。
+      4. **重新运行**：改完一定要再运行一次，确认输出正常。
+      修好之后的文件长这样，运行成功，输出两行：
+
+      ```python
+      print("小明")
+      print("我正在重新学习 Python")
+      ```
+
+      口头检查：报错的最后几行里，哪三个信息能帮你定位问题？
+  - id: s-practice
+    type: practice
+    title: 实践：完整走一遍"写→运行→报错→修复"
+    taskMd: |
+      ## 任务
+
+      在 PyCharm（普通脚本运行模式）里完成下面 7 步，目标是把"编辑 → 运行 → 看输出 → 遇到错误 → 修复 → 再运行"完整走一遍。重点不是语法，是走完流程。
+
+      1. 新建一个文件，命名为 `hello.py`。
+      2. 在文件里写一行代码，输出**你自己的名字**（比如 `print("小明")`，把"小明"换成你的名字）。
+      3. 再加一行，输出这句话：`我正在重新学习 Python`。
+      4. 运行一次，确认两行都正常输出；然后**修改其中一句文字**（比如把名字改成昵称），再运行一次，确认输出跟着变了。
+      5. **故意**删掉其中一个引号（比如把 `print("小明")` 改成 `print("小明)`），运行，观察报错。
+      6. 从报错的最后几行找出三个信息：**文件名**、**行号**（如 `line 2`）、**错误类型**（如 `SyntaxError`），在纸上写下来。
+      7. 把删掉的引号补回去，重新运行，确认两行输出都恢复正常。
+    hintMd: |
+      ## 分级提示
+
+      1. 卡在第 5 步"不知道删哪个引号"：删任意一个就行，比如把一对引号中的右边那个删掉，效果最明显。
+      2. 报错信息很长看不懂：**只看最后两行**。倒数第二行附近有 `File "hello.py", line 2`（文件名和行号），最后一行开头是错误类型（如 `SyntaxError`）。
+      3. 第 6 步写不出来：对照本课的两个例子——漏引号对应 `SyntaxError`，文字没加引号被当成名字对应 `NameError`。你删的是引号，所以大概率是 `SyntaxError`。
+      4. 第 7 步运行还是报错：检查是不是只补了一个引号、引号是不是成对的（一左一右），然后再运行一次。
+    solutionMd: |
+      ## 参考做法
+
+      下面用"小明"占位，请换成你自己的名字。
+
+      **第 1—3 步：写文件**
+
+      ```python
+      print("小明")
+      print("我正在重新学习 Python")
+      ```
+
+      **第 4 步：运行 → 修改 → 再运行**
+
+      第一次运行输出：
+
+      ```text
+      小明
+      我正在重新学习 Python
+      ```
+
+      把第一行改成 `print("小小明")` 后再运行：
+
+      ```python
+      print("小小明")
+      print("我正在重新学习 Python")
+      ```
+
+      输出第一行变成"小小明"，说明"改代码 → 重新运行 → 输出跟着变"。
+
+      **第 5—6 步：故意写错，读报错**
+
+      删掉第一行右边的引号（坏代码，只看不抄），运行后报错的最后几行类似：
+
+      ```text
+        File "hello.py", line 1
+          print("小明)
+                ^
+      SyntaxError: unterminated string literal (detected at line 1)
+      ```
+
+      三个信息：文件名 `hello.py`，行号 `line 1`，错误类型 `SyntaxError`。
+
+      **第 7 步：修复**
+
+      把引号补回成 `print("小明")`，重新运行，两行输出恢复正常，流程走完。
+    acceptance:
+      - "hello.py 已创建，能用 python3 正常运行"
+      - "运行输出包含自己的名字"
+      - "运行输出包含\"我正在重新学习 Python\"这句话"
+      - "修改其中一句文字后重新运行，输出发生了对应的变化"
+      - "故意删除一个引号后运行失败，屏幕上显示了报错信息"
+      - "能说出报错中的文件名、行号（如 line 2）和错误类型（如 SyntaxError）"
+      - "把引号补回后重新运行成功，两行输出恢复正常"

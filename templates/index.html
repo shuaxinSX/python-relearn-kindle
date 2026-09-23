@@ -6,7 +6,8 @@
   已读 <span id="stat-read">0</span> / <span id="stat-total">{{ total }}</span> 课 ·
   待复习 <span id="stat-review">0</span> 题
 </p>
-<p><a class="btn" id="start-btn" href="{{ url('course.html') }}">开始学习</a></p>
+<p class="entry-links"><a class="btn" id="home-primary" href="{{ url('lessons/m0-first-run.html') }}">我是零基础 → 从 M0 开始</a>
+<a class="btn" href="{{ url('course.html') }}">我以前用过 Python → 直接开始正式课程</a></p>
 <nav aria-label="站点导航">
   <ul>
     <li><a href="{{ url('course.html') }}">课程目录</a></li>
@@ -14,11 +15,24 @@
     <li><a href="{{ url('settings.html') }}">设置</a></li>
   </ul>
 </nav>
+<h2>第一次学习指南</h2>
+<ol>
+  <li>先看解释</li>
+  <li>见代码先预测</li>
+  <li>再展开答案</li>
+  <li>完成小测</li>
+  <li>去 PyCharm 亲手写</li>
+  <li>不懂再问 ChatGPT</li>
+</ol>
 <h2>课程</h2>
+<p><small>M0 为零基础准备模块，有 Python 经验者可直接跳过。</small></p>
 <ol id="lesson-order">
 {% for lesson in lessons %}
-  <li data-lesson-id="{{ lesson.id }}"><a href="{{ url('lessons/' + lesson.id + '.html') }}">{{ lesson.seq }}. {{ lesson.title }}</a></li>
+  <li data-lesson-id="{{ lesson.id }}"><a href="{{ url('lessons/' + lesson.id + '.html') }}">{{ lesson.seq }}. {{ lesson.title }}</a>{% if lesson.seq is string and lesson.seq.startswith('M0-') %}（可选·可跳过）{% endif %}</li>
 {% endfor %}
 </ol>
+<ol id="catalog-questions" hidden>
+{% for q in questions %}  <li data-question-id="{{ q.question_id }}" data-question-revision="{{ q.revision }}"></li>
+{% endfor %}</ol>
 <noscript><p>未启用脚本时仍可直接阅读各课全文；学习进度保存需要脚本支持。</p></noscript>
 {% endblock %}

@@ -8,6 +8,9 @@
 
 import subprocess
 import sys
+import tempfile
+import shutil
+import os
 import unittest
 from pathlib import Path
 
@@ -35,9 +38,15 @@ class TestFixturesRun(unittest.TestCase):
                     expected_path.is_file(),
                     f"{lesson_id}/{script.name} 缺同名 .expected.txt")
                 expected = expected_path.read_bytes()
-                proc = subprocess.run(
-                    [sys.executable, str(script)],
-                    capture_output=True, timeout=30)
+                # Every fixture gets a disposable working directory. No file
+                # example runs in the checkout or touches user input/report files.
+                with tempfile.TemporaryDirectory() as tmp:
+                    work = Path(tmp) / lesson_id
+                    shutil.copytree(script.parent, work, ignore=shutil.ignore_patterns('__pycache__'))
+                    proc = subprocess.run(
+                        [sys.executable, '-B', str(work / script.name)], cwd=work,
+                        env={**os.environ, 'PYTHONIOENCODING': 'utf-8', 'PYTHONDONTWRITEBYTECODE': '1'},
+                        capture_output=True, timeout=30)
                 self.assertEqual(
                     proc.returncode, 0,
                     f"{lesson_id}/{script.name} 退出码 {proc.returncode}，"
@@ -46,6 +55,18 @@ class TestFixturesRun(unittest.TestCase):
                     proc.stdout, expected,
                     f"{lesson_id}/{script.name} 输出与 {expected_path.name} "
                     f"逐字节不一致：实际={proc.stdout!r} 期望={expected!r}")
+                self.assertEqual(proc.stderr, b'', f'{lesson_id}/{script.name}: unexpected stderr')
+
+    def test_fixture_pairs_core_81_plus_m0_12_and_no_orphan_expected(self):
+        # Core/M0 分口径：核心课 81 对 + M0 12 对 = 93。
+        scripts = list(iter_scripts())
+        core = [s for s in scripts if not s[0].startswith('m0-')]
+        m0 = [s for s in scripts if s[0].startswith('m0-')]
+        self.assertEqual(len(core), 81, 'V1 core fixture inventory changed; review the full inventory')
+        self.assertEqual(len(m0), 12, 'M0 fixture inventory changed; review the full inventory')
+        self.assertEqual(len(scripts), 93)
+        expected = {p.with_suffix('.expected.txt') for _, p in scripts}
+        self.assertEqual(expected, set(FIXTURES_ROOT.rglob('*.expected.txt')))
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@ schemaVersion: 1
 id: run-and-bindings
 title: 运行脚本、变量绑定
 goal: 对没有分支的短脚本，逐行说出每个名字的当前值和最终输出；明白重新运行从头开始，不会接着上一次的状态。
-revision: 1
+revision: 2
 status: published
 prerequisites: []
 steps:
@@ -18,13 +18,14 @@ steps:
     bodyMd: |
       脚本文件和运行结果是两件事：文件里的文字只是静态说明，运行一次才产生输出。顶层语句从上到下逐条执行，每条都真正执行一遍。
       赋值语句先把等号右边整体算出结果，再让左边的名字绑定它。所以 `x = x + 1` 的含义是"先取旧值加一，再重新绑定"，不是数学等式。变量就像贴在盒子上的名字标签，重新赋值就是把标签贴到新的结果上。
+      名字后加括号是在调用操作，例如 `print(saved, copies)` 把两个当前值交给 print；`#` 后是给人看的注释，不参与执行。
       `print` 只负责把观察结果显示出来；没有 `print` 的代码照样计算，只是看不见。不写 `print` 不等于没有计算。
 
       ```python
       copies = 2  # copies 绑定整数 2
       saved = copies  # 取 copies 当前值 2
       copies = copies + 1  # 右边先算 2+1=3
-      print(saved, copies)  # 只显示，不计算
+      print(saved, copies)  # 显示两个当前值
       ```
   - id: s-predict
     type: reveal

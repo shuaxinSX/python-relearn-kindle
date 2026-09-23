@@ -3,6 +3,9 @@ courseId: python-relearn
 title: Python 重学微课
 pythonVersion: "3.13"
 modules:
+  - id: m0
+    title: M0 零基础准备（可选）
+    lessonIds: [m0-first-run, m0-reading-code, m0-when-errors]
   - id: m1
     title: M1 读懂基本代码
     lessonIds: [run-and-bindings, types-and-none, strings, conditions]
