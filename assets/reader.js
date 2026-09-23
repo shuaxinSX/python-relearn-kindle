@@ -3,24 +3,36 @@
 
 
 function prlByteLength(s) {
-  try { return unescape(encodeURIComponent(s)).length; }
-  catch (e) { return s.length; }
+  var i, c, n = 0;
+  for (i = 0; i < s.length; i++) {
+    c = s.charCodeAt(i);
+    if (c < 128) { n++; }
+    else if (c < 2048) { n += 2; }
+    else if (c >= 55296 && c <= 56319 && s.charCodeAt(i + 1) >= 56320 && s.charCodeAt(i + 1) <= 57343) { n += 4; i++; }
+    else { n += 3; }
+  }
+  return n;
 }
 
-function prlHasUnsafeKeys(v) {
+function prlHasUnsafeKeys(v, depth) {
   var k;
+  depth = depth || 0;
+  if (depth > 30) { return true; }
   if (v !== null && typeof v === "object") {
     for (k in v) {
       if (k === "__proto__" || k === "constructor" || k === "prototype") { return true; }
-      if (prlHasUnsafeKeys(v[k])) { return true; }
+      if (prlHasUnsafeKeys(v[k], depth + 1)) { return true; }
     }
   }
   return false;
 }
 
 function prlIsNonNegInt(n) {
-  return typeof n === "number" && isFinite(n) && Math.floor(n) === n && n >= 0;
+  return typeof n === "number" && isFinite(n) && Math.floor(n) === n && n >= 0 && n <= 9007199254740991;
 }
+
+function prlObject(v) { return v !== null && typeof v === "object" && !Array.isArray(v); }
+function prlId(v) { return typeof v === "string" && /^[a-z0-9-]+$/.test(v); }
 
 function prlInArray(arr, v) {
   var i;
@@ -30,35 +42,32 @@ function prlInArray(arr, v) {
 
 function prlValidFields(s) {
   var k, v, loc;
-  if (!s || typeof s !== "object") { return false; }
-  if (!s.settings || typeof s.settings !== "object") { return false; }
+  if (!prlObject(s) || !prlObject(s.settings)) { return false; }
   if (!(s.settings.fontSize === 22 || s.settings.fontSize === 26 || s.settings.fontSize === 30)) { return false; }
   loc = s.lastLocation;
   if (loc !== null) {
-    if (!loc || typeof loc !== "object") { return false; }
-    if (typeof loc.lessonId !== "string" || !loc.lessonId) { return false; }
-    if (typeof loc.stepId !== "string" || !loc.stepId) { return false; }
+    if (!prlObject(loc) || !prlId(loc.lessonId) || !prlId(loc.stepId)) { return false; }
   }
-  if (!s.lessons || typeof s.lessons !== "object") { return false; }
+  if (!prlObject(s.lessons)) { return false; }
   for (k in s.lessons) {
     v = s.lessons[k];
-    if (!v || typeof v !== "object") { return false; }
-    if (v.lastStepId !== undefined && typeof v.lastStepId !== "string") { return false; }
+    if (!prlId(k) || !prlObject(v)) { return false; }
+    if (v.lastStepId !== undefined && !prlId(v.lastStepId)) { return false; }
     if (v.completed !== undefined && typeof v.completed !== "boolean") { return false; }
     if (v.practiceDone !== undefined && typeof v.practiceDone !== "boolean") { return false; }
   }
-  if (!s.questions || typeof s.questions !== "object") { return false; }
+  if (!prlObject(s.questions)) { return false; }
   for (k in s.questions) {
     v = s.questions[k];
-    if (!v || typeof v !== "object") { return false; }
+    if (!prlId(k) || !prlObject(v)) { return false; }
     if (!prlIsNonNegInt(v.revision) || v.revision <= 0) { return false; }
     if (!prlIsNonNegInt(v.attempts)) { return false; }
-    if (!prlIsNonNegInt(v.wrongAttempts)) { return false; }
-    if (v.lastOptionId !== null && v.lastOptionId !== undefined && typeof v.lastOptionId !== "string") { return false; }
+    if (!prlIsNonNegInt(v.wrongAttempts) || v.wrongAttempts > v.attempts) { return false; }
+    if (v.lastOptionId !== null && v.lastOptionId !== undefined && !prlId(v.lastOptionId)) { return false; }
     if (typeof v.lastCorrect !== "boolean") { return false; }
     if (typeof v.needsReview !== "boolean") { return false; }
-    if (typeof v.lessonId !== "string" || !v.lessonId) { return false; }
-    if (typeof v.stepId !== "string" || !v.stepId) { return false; }
+    if (v.lessonId !== undefined && !prlId(v.lessonId)) { return false; }
+    if (v.stepId !== undefined && !prlId(v.stepId)) { return false; }
   }
   return true;
 }
@@ -87,7 +96,8 @@ function validateBackupText(text, opts) {
   }
   for (k in s.questions) {
     v = s.questions[k];
-    if (v && v.needsReview === true && prlInArray(catalogQuestions, k)) { review++; }
+    if (v && prlInArray(catalogQuestions, k) &&
+        (v.needsReview || (opts.questionRevisions && opts.questionRevisions[k] !== v.revision))) { review++; }
   }
   return { ok: true, preview: { read: read, review: review }, state: s };
 }
@@ -137,8 +147,9 @@ function prlBoot() {
 
   var storageOk = false;
   try {
-    window.localStorage.setItem("__prl_probe__", "1");
-    window.localStorage.removeItem("__prl_probe__");
+    window.localStorage.getItem(STORE_KEY);
+    window.localStorage.setItem(STORE_KEY + ":probe", "1");
+    window.localStorage.removeItem(STORE_KEY + ":probe");
     storageOk = true;
   } catch (e) { storageOk = false; }
 
@@ -189,12 +200,13 @@ function prlBoot() {
   function loadState() {
     var raw = null, s = null;
     if (storageOk) {
-      try { raw = window.localStorage.getItem(STORE_KEY); } catch (e) { raw = null; }
+      try { raw = window.localStorage.getItem(STORE_KEY); }
+      catch (e) { storageOk = false; showBanner(); return; }
     }
     if (raw === null || raw === undefined) { return; }
     try {
       s = JSON.parse(raw);
-      if (!s || s.schemaVersion !== 1) { throw new Error("version"); }
+      if (!s || s.schemaVersion !== 1 || s.courseId !== courseId || prlHasUnsafeKeys(s)) { throw new Error("version"); }
       if (!prlValidFields(s)) { throw new Error("fields"); }
     } catch (e) {
       corruptMode = true;
@@ -211,7 +223,13 @@ function prlBoot() {
     try {
       window.localStorage.setItem(STORE_KEY, JSON.stringify(state));
       return true;
-    } catch (e) { return false; }
+    } catch (e) {
+      storageOk = false;
+      showBanner();
+      var status = doc.getElementById("storage-status");
+      if (status) { status.textContent = "本地保存：不可用。"; }
+      return false;
+    }
   }
 
   function ensureLesson(lessonId) {
@@ -224,11 +242,16 @@ function prlBoot() {
   /* keep font size, wipe project key only */
   function wipeKeepingFontSize() {
     var fs = state.settings.fontSize;
-    try { window.localStorage.removeItem(STORE_KEY); } catch (e) {}
+    var fresh = defaultState();
+    fresh.settings.fontSize = fs;
+    replaceState(fresh);
+  }
+
+  function replaceState(fresh) {
+    var old = state;
+    state = fresh;
+    if (!persist(true)) { state = old; return; }
     corruptMode = false;
-    state = defaultState();
-    state.settings.fontSize = fs;
-    persist(true);
     window.location.reload();
   }
 
@@ -241,9 +264,10 @@ function prlBoot() {
   }
 
   function countReview() {
-    var k, n = 0;
-    for (k in state.questions) {
-      if (state.questions[k] && state.questions[k].needsReview === true) { n++; }
+    var nodes = doc.querySelectorAll('#catalog-questions li'), i, rec, n = 0;
+    for (i = 0; i < nodes.length; i++) {
+      rec = state.questions[nodes[i].getAttribute("data-question-id")];
+      if (rec && (rec.needsReview || rec.revision !== parseInt(nodes[i].getAttribute("data-question-revision"), 10))) { n++; }
     }
     return n;
   }
@@ -273,7 +297,7 @@ function prlBoot() {
 
   var bodyClass = " " + doc.body.className + " ";
   function hasPage(name) { return bodyClass.indexOf(" " + name + " ") >= 0; }
-  function isReviewMode() { return (window.location.search || "").indexOf("review=1") >= 0; }
+  function isReviewMode() { return /(?:^|[?&])review=1(?:&|$)/.test(window.location.search || ""); }
 
   function initSteps(article, lessonId, reviewMode) {
     var stepEls = article.querySelectorAll("section.step"), i;
@@ -281,7 +305,7 @@ function prlBoot() {
     var ids = [];
     for (i = 0; i < stepEls.length; i++) { ids.push(stepEls[i].id); }
     var nav = doc.getElementById("step-nav");
-    var end = article.querySelector(".lesson-end");
+    var end = doc.querySelector(".lesson-end");
     var readMark = end ? end.querySelector(".read-mark") : null;
     var current = null;
 
@@ -299,11 +323,11 @@ function prlBoot() {
       info.textContent = "第 " + (idx + 1) + " / " + ids.length + " 部分";
       if (idx <= 0) { prev.setAttribute("disabled", "disabled"); }
       else {
-        (function (id) { prev.onclick = function () { window.location.hash = id; }; })(ids[idx - 1]);
+        (function (id) { prev.onclick = function () { window.location.hash = id; show(id, true); }; })(ids[idx - 1]);
       }
       if (idx >= ids.length - 1) { next.setAttribute("disabled", "disabled"); }
       else {
-        (function (id) { next.onclick = function () { window.location.hash = id; }; })(ids[idx + 1]);
+        (function (id) { next.onclick = function () { window.location.hash = id; show(id, true); }; })(ids[idx + 1]);
       }
       nav.appendChild(prev); nav.appendChild(info); nav.appendChild(next);
     }
@@ -340,16 +364,17 @@ function prlBoot() {
     var hsh = (window.location.hash || "").replace(/^#/, "");
     var saved = (!reviewMode && state.lessons[lessonId]) ? state.lessons[lessonId].lastStepId : null;
     if (hsh && prlInArray(ids, hsh)) { initial = hsh; }
-    else if (saved && prlInArray(ids, saved)) { initial = saved; }
+    else if (!hsh && saved && prlInArray(ids, saved)) { initial = saved; }
     if (window.history && window.history.replaceState) {
       try { window.history.replaceState(null, "", "#" + initial); } catch (e) {}
     }
-    addClass(root, "js-step");
     show(initial, true);
+    addClass(root, "js-step");
     if ("onhashchange" in window) {
       window.onhashchange = function () {
         var hh = (window.location.hash || "").replace(/^#/, "");
-        if (hh && hh !== current && prlInArray(ids, hh)) { show(hh, true); }
+        if (!prlInArray(ids, hh)) { hh = ids[0]; }
+        if (hh !== current) { show(hh, true); }
       };
     }
   }
@@ -441,7 +466,7 @@ function prlBoot() {
         addClass(verdict, ok ? "correct" : "wrong");
       }
       if (result) { addClass(result, "show"); }
-      if (answerZone) { addClass(answerZone, "show"); }
+      if (reviewMode && backLink) { backLink.removeAttribute("hidden"); }
       unmarkCorrectOpt();
       markCorrectOpt();
     }
@@ -453,8 +478,9 @@ function prlBoot() {
       showHint("题目已更新，需重新作答。");
     }
 
-    if (submitBtn) {
-      submitBtn.onclick = function () {
+    if (form) {
+      form.onsubmit = function (event) {
+        event.preventDefault();
         var sel = null, i, ok, old, fresh;
         if (submitted) { return; }
         for (i = 0; i < radios.length; i++) {
@@ -471,8 +497,8 @@ function prlBoot() {
             lessonId: lessonId, stepId: stepId
           };
         } else {
-          old.attempts = (old.attempts || 0) + 1;
-          if (!ok) { old.wrongAttempts = (old.wrongAttempts || 0) + 1; }
+          old.attempts = Math.min(old.attempts + 1, 9007199254740991);
+          if (!ok) { old.wrongAttempts = Math.min(old.wrongAttempts + 1, 9007199254740991); }
           old.lastOptionId = sel;
           old.lastCorrect = ok;
           old.needsReview = !ok;
@@ -481,10 +507,6 @@ function prlBoot() {
         }
         persist();
         renderSubmitted(sel, ok);
-        if (reviewMode && backLink) {
-          backLink.setAttribute("href", basePath + "review.html");
-          backLink.removeAttribute("hidden");
-        }
       };
     }
     if (retryBtn) {
@@ -510,7 +532,7 @@ function prlBoot() {
 
   function initProgress(article, lessonId) {
     var markBtn = doc.getElementById("mark-read");
-    var readState = article.querySelector(".read-state");
+    var readState = doc.querySelector(".read-state");
     function refresh() {
       var rec = ensureLesson(lessonId);
       if (markBtn) { markBtn.textContent = rec.completed ? "取消已读" : "标记为已读"; }
@@ -524,7 +546,7 @@ function prlBoot() {
         refresh();
       };
     }
-    var cb = article.querySelector(".practice-done");
+    var cb = article.querySelector('.practice-done input[type="checkbox"]');
     var hasPractice = article.querySelector('section.step[data-step-type="practice"]');
     if (cb && hasPractice) {
       var rec0 = state.lessons[lessonId];
@@ -535,6 +557,7 @@ function prlBoot() {
       };
     }
     refresh();
+    addClass(root, "js-progress");
   }
 
   function initLessonPage() {
@@ -576,7 +599,7 @@ function prlBoot() {
       var href = basePath + "course.html";
       var label = "重新查看课程";
       var loc = state.lastLocation;
-      if (loc && loc.lessonId && state.lessons[loc.lessonId] && state.lessons[loc.lessonId].completed !== true) {
+      if (loc && prlInArray(catalogIds("lesson-order"), loc.lessonId) && state.lessons[loc.lessonId] && state.lessons[loc.lessonId].completed !== true) {
         href = basePath + "lessons/" + loc.lessonId + ".html#" + loc.stepId;
         label = "继续学习";
       } else if (firstOpen !== null) {
@@ -605,7 +628,7 @@ function prlBoot() {
         var id = li.getAttribute("data-practice-for");
         var rec = state.lessons[id];
         var st = li.querySelector(".practice-status");
-        if (st) { st.textContent = (rec && rec.practiceDone) ? "已完成" : "未完成"; }
+        if (st) { st.textContent = (rec && rec.practiceDone) ? "实践：已完成" : "实践：未完成"; }
       })(practs[j]);
     }
   }
@@ -749,10 +772,14 @@ function prlBoot() {
     var importPreview = doc.getElementById("import-preview");
     if (importBtn && importText && importPreview) {
       importBtn.onclick = function () {
+        var nodes = doc.querySelectorAll('#catalog-questions li'), revisions = {}, j;
+        for (j = 0; j < nodes.length; j++) {
+          revisions[nodes[j].getAttribute("data-question-id")] = parseInt(nodes[j].getAttribute("data-question-revision"), 10);
+        }
         var res = validateBackupText(importText.value, {
           courseId: courseId, maxBytes: 131072,
           catalogLessons: catalogIds("catalog-lessons"),
-          catalogQuestions: catalogIds("catalog-questions")
+          catalogQuestions: catalogIds("catalog-questions"), questionRevisions: revisions
         });
         var p = doc.createElement("p");
         clearChildren(importPreview);
@@ -770,10 +797,7 @@ function prlBoot() {
         okBtn.textContent = "确认导入";
         okBtn.onclick = function () {
           if (!window.confirm("确定用备份整体替换当前学习记录吗？")) { return; }
-          state = normalizeState(res.state);
-          corruptMode = false;
-          persist(true);
-          window.location.reload();
+          replaceState(normalizeState(res.state));
         };
         importPreview.appendChild(okBtn);
       };
@@ -786,6 +810,7 @@ function prlBoot() {
       };
     }
     if (corruptMode) { showCorruptTools(); }
+    addClass(root, "js-settings");
   }
 
   addClass(root, "js");
@@ -793,7 +818,14 @@ function prlBoot() {
   if (!storageOk || corruptMode) { showBanner(); }
   applyFontSize(state.settings.fontSize);
   bindFontRadios();
-  try { initLessonPage(); } catch (e) {}
+  try { initLessonPage(); } catch (e) {
+    removeClass(root, "js-step"); removeClass(root, "js-reveal");
+    removeClass(root, "js-quiz"); removeClass(root, "js-progress");
+    var nav = doc.getElementById("step-nav");
+    if (nav) { nav.setAttribute("hidden", "hidden"); }
+    var mark = doc.querySelector(".read-mark");
+    if (mark) { mark.setAttribute("hidden", "hidden"); }
+  }
   try { initHomePage(); } catch (e) {}
   try { initCoursePage(); } catch (e) {}
   try { initReviewPage(); } catch (e) {}

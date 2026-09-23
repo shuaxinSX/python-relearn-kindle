@@ -18,7 +18,8 @@ import json
 import re
 import sys
 from pathlib import Path
-from urllib.parse import urlsplit
+from html.parser import HTMLParser
+from urllib.parse import urlsplit, urljoin, unquote
 
 try:
     from tools import validate as validator
@@ -37,7 +38,7 @@ CSS_BUDGET = 10 * 1024    # 哈希后 CSS 上限
 ASSET_FILES = ("reader.js", "styles.css")
 
 HREF_RE = re.compile(r'href="([^"]*)"')
-ID_RE = re.compile(r'\bid="([^"]+)"')
+ID_RE = re.compile(r'(?<![-\w])id="([^"]+)"')
 
 
 def normalize_base_path(base_path: str) -> str:
@@ -49,7 +50,22 @@ def normalize_base_path(base_path: str) -> str:
 
 
 def render_markdown(md: MarkdownIt, text: str) -> str:
-    return md.render(text)
+    tokens = md.parse(text)
+    def resolve(tokens):
+        for token in tokens:
+            attr = 'href' if token.type == 'link_open' else ('src' if token.type == 'image' else None)
+            ref = token.attrGet(attr) if attr else None
+            if ref and not ref.startswith('#') and not urlsplit(ref).scheme and not ref.startswith('//'):
+                token.attrSet(attr, urljoin(md.options.get('basePath', '/') + 'lessons/', ref))
+            if token.children:
+                resolve(token.children)
+    resolve(tokens)
+    return md.renderer.render(tokens, md.options, {})
+
+
+def compact_js(source: str) -> str:
+    """只移除行首缩进与空行；测试用 ES5 AST 等价检查保护字符串语义。"""
+    return "\n".join(line.lstrip() for line in source.splitlines() if line.strip()) + "\n"
 
 
 def build_lesson_context(lesson: dict, md: MarkdownIt) -> dict:
@@ -85,6 +101,7 @@ def build_lesson_context(lesson: dict, md: MarkdownIt) -> dict:
         steps.append(ctx)
     return {"id": lesson.get("id"), "title": lesson.get("title"), "goal": lesson.get("goal"),
             "steps": steps,
+            "practice_id": next((s["id"] for s in steps if s["type"] == "practice"), None),
             "has_practice": any(s["type"] == "practice" for s in steps)}
 
 
@@ -123,27 +140,42 @@ def check_links(dist_dir: Path, base_path: str) -> list:
             ids_cache[path] = set(ID_RE.findall(path.read_text(encoding="utf-8")))
         return ids_cache[path]
 
+    class References(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.refs = []
+        def handle_starttag(self, tag, attrs):
+            self.refs.extend(v for k, v in attrs if k in ("href", "src") and v)
+
     for page in html_files:
         rel_page = page.relative_to(dist_dir).as_posix()
         html = page.read_text(encoding="utf-8")
         page_ids = ids_of(page)
-        for href in HREF_RE.findall(html):
-            if not href or href.startswith("//"):
+        parser = References()
+        parser.feed(html)
+        for href in parser.refs:
+            if urlsplit(href).scheme or href.startswith("//"):
                 continue
             if href.startswith("#"):
                 frag = href[1:]
                 if frag and frag not in page_ids:
                     errors.append(f"{rel_page}: 锚点 #{frag} 在本页不存在")
                 continue
-            if not href.startswith(base_path):
-                continue  # 站外或非 basePath 链接不在检查范围
-            parts = urlsplit(href)
-            rel = parts.path[len(base_path):]
+            parts = urlsplit(urljoin(base_path + rel_page, href))
+            if not parts.path.startswith(base_path):
+                errors.append(f"{rel_page}: 内部引用越出 basePath: {href}")
+                continue
+            rel = unquote(parts.path[len(base_path):])
+            if not rel or rel.endswith("/"):
+                rel += "index.html"
             target = dist_dir / rel
+            if not target.resolve().is_relative_to(dist_dir.resolve()):
+                errors.append(f"{rel_page}: 内部引用越出输出目录: {href}")
+                continue
             if not target.is_file():
                 errors.append(f"{rel_page}: 内链目标不存在: {href}")
                 continue
-            if parts.fragment and parts.fragment not in ids_of(target):
+            if parts.fragment and unquote(parts.fragment) not in ids_of(target):
                 errors.append(f"{rel_page}: 锚点 #{parts.fragment} 在 {rel} 中不存在 (href={href})")
     return errors
 
@@ -204,6 +236,12 @@ def main(argv=None) -> int:
     config_path = Path(args.config)
     course_path = Path(args.course)
     out_dir = Path(args.out)
+    protected = [REPO_ROOT / name for name in ('content', 'assets', 'templates', 'tools', 'tests', 'docs', '.git', '.github', '.venv', 'node_modules')]
+    resolved_out = out_dir.resolve()
+    if (REPO_ROOT.is_relative_to(resolved_out) or
+            any(resolved_out.is_relative_to(p) for p in protected)):
+        print(f"构建中止：输出目录不可覆盖项目源码: {out_dir}", file=sys.stderr)
+        return 1
 
     # 1. 读配置
     config_errors: list = []
@@ -228,17 +266,21 @@ def main(argv=None) -> int:
     print("内容校验通过")
 
     model = validator.load_model(content_dir, course_path)
-    md = MarkdownIt("commonmark", {"html": False})  # 禁用原始 HTML
+    md = MarkdownIt("commonmark", {"html": False}).enable("table")
+    md.options['basePath'] = base_path
 
     # 3. 资源哈希（先算哈希，再渲染模板）
     assets_src = REPO_ROOT / "assets"
     hashed: dict = {}
+    asset_bytes: dict = {}
     for name in ASSET_FILES:
         src = assets_src / name
         if not src.is_file():
             print(f"构建中止：资源文件缺失: {src}", file=sys.stderr)
             return 1
-        digest = hashlib.sha256(src.read_bytes()).hexdigest()[:8]
+        asset_bytes[name] = (compact_js(src.read_text(encoding="utf-8")).encode("utf-8")
+                             if name.endswith(".js") else src.read_bytes())
+        digest = hashlib.sha256(asset_bytes[name]).hexdigest()[:8]
         stem, suffix = name.rsplit(".", 1)
         hashed[name] = f"{stem}.{digest}.{suffix}"
 
@@ -249,7 +291,8 @@ def main(argv=None) -> int:
         return base_path + "assets/" + hashed[name]
 
     # window.PRL_CONFIG 由构建器生成 JSON（注意转义）
-    prl_config = json.dumps({"siteId": site_id, "basePath": base_path},
+    prl_config = json.dumps({"siteId": site_id, "basePath": base_path,
+                            "courseId": model["course"]["courseId"]},
                             ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
     prl_config_js = f"window.PRL_CONFIG={prl_config};"
 
@@ -286,21 +329,21 @@ def main(argv=None) -> int:
 
     pages: dict[str, str] = {}
     pages["index.html"] = env.get_template("index.html").render(
-        **base_ctx, lessons=all_lessons, total=len(all_lessons))
+        **base_ctx, page_kind="index", lessons=all_lessons, questions=questions, total=len(all_lessons))
     pages["course.html"] = env.get_template("course.html").render(
-        **base_ctx, modules=modules_ctx)
+        **base_ctx, page_kind="course", modules=modules_ctx)
     pages["review.html"] = env.get_template("review.html").render(
-        **base_ctx, questions=questions)
+        **base_ctx, page_kind="review", questions=questions)
     pages["settings.html"] = env.get_template("settings.html").render(
-        **base_ctx, lessons=all_lessons, questions=questions)
-    pages["404.html"] = env.get_template("404.html").render(**base_ctx)
+        **base_ctx, page_kind="settings", lessons=all_lessons, questions=questions)
+    pages["404.html"] = env.get_template("404.html").render(**base_ctx, page_kind="404")
 
     lesson_tpl = env.get_template("lesson.html")
     for i, lesson_id in enumerate(published_order):
         lesson = lessons_ctx[lesson_id]
         nxt = lessons_ctx[published_order[i + 1]] if i + 1 < len(published_order) else None
         pages[f"lessons/{lesson_id}.html"] = lesson_tpl.render(
-            **base_ctx, lesson=lesson, next_lesson=nxt)
+            **base_ctx, page_kind="lesson", lesson=lesson, next_lesson=nxt)
 
     # 5. 写 dist/
     if out_dir.exists():
@@ -316,7 +359,14 @@ def main(argv=None) -> int:
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(html, encoding="utf-8")
     for name, hashed_name in hashed.items():
-        (out_dir / "assets" / hashed_name).write_bytes((assets_src / name).read_bytes())
+        (out_dir / "assets" / hashed_name).write_bytes(asset_bytes[name])
+    samples = content_dir / "samples"
+    if samples.is_dir():
+        for sample in samples.iterdir():
+            if sample.is_file():
+                target = out_dir / "exercises" / sample.name
+                target.parent.mkdir(exist_ok=True)
+                target.write_bytes(sample.read_bytes())
     print(f"已生成 {len(pages)} 个页面 + {len(hashed)} 个资源 → {out_dir}")
 
     # 6. 内链检查

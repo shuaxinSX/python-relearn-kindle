@@ -2,7 +2,7 @@ schemaVersion: 1
 id: scope-defaults
 title: 作用域与默认参数
 goal: 分清每次调用的局部状态与函数定义时确定的默认值；写出多次调用互不积累的函数。
-revision: 1
+revision: 2
 status: published
 prerequisites: [types-and-none, lists-tuples, functions]
 steps:
@@ -17,6 +17,7 @@ steps:
     title: 核心机制：局部绑定与定义时确定的默认值
     bodyMd: |
       函数体内的普通赋值，只产生这一次调用的局部绑定：同名的外部变量不会因此被改动。形参也是这一次调用的局部名字；省略参数和显式传参是两种不同的调用约定。
+      若函数内先读取一个名字、后面又对它普通赋值，Python 会把它视为局部名字；读取时尚未绑定会报 UnboundLocalError。这里只识别原因，不讲 global/nonlocal 改写。
       默认值表达式在执行 def 的那一刻求值一次，之后外部变量再变，已经确定的默认值不变。如果默认值是一个可变对象，后续省略参数的调用会继续使用同一个对象。
 
       ```python

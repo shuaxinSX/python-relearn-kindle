@@ -39,7 +39,7 @@
       </div>
       <section class="answer-zone" aria-label="答案与解析">
         <h3>答案与解析</h3>
-        <p>正确答案：{{ step.correct_opt_html | safe }}</p>
+        <div>正确答案：{{ step.correct_opt_html | safe }}</div>
         <div class="md">{{ step.explanation_html | safe }}</div>
         <ol class="answer-opt-explains">
 {% for opt in step.options %}

@@ -19,7 +19,6 @@
   <textarea id="import-text" rows="8" placeholder="粘贴备份 JSON 文本"></textarea>
   <p><button type="button" id="import-btn">校验并预览</button></p>
   <div id="import-preview" hidden></div>
-  <p><button type="button" id="import-confirm" hidden>确认导入</button></p>
 </section>
 <section>
   <h2>清除记录</h2>
@@ -31,6 +30,6 @@
 {% for l in lessons %}  <li data-lesson-id="{{ l.id }}"></li>
 {% endfor %}</ol>
 <ol id="catalog-questions" hidden>
-{% for q in questions %}  <li data-question-id="{{ q.question_id }}"></li>
+{% for q in questions %}  <li data-question-id="{{ q.question_id }}" data-question-revision="{{ q.revision }}"></li>
 {% endfor %}</ol>
 {% endblock %}

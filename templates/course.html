@@ -8,11 +8,12 @@
   <h2>{{ module.title }}</h2>
   <ul class="lesson-list">
 {% for lesson in module.lessons %}
-    <li data-lesson-id="{{ lesson.id }}">
+    <li data-lesson-id="{{ lesson.id }}"{% if lesson.has_practice %} data-practice-for="{{ lesson.id }}"{% endif %}>
       <a href="{{ url('lessons/' + lesson.id + '.html') }}">{{ lesson.seq }}. {{ lesson.title }}</a>
       <span class="lesson-status">未开始</span>
 {% if lesson.has_practice %}
       <span class="practice-status">实践：未完成</span>
+      <a href="{{ url('lessons/' + lesson.id + '.html') }}#{{ lesson.practice_id }}">前往实践</a>
 {% endif %}
     </li>
 {% endfor %}

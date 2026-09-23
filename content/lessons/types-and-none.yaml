@@ -2,7 +2,7 @@ schemaVersion: 1
 id: types-and-none
 title: 基本类型、转换与 None
 goal: 在运算前判断拿到的是数字、文本、真假还是缺失值，并选择明确的转换或缺失表达。
-revision: 1
+revision: 2
 status: published
 prerequisites:
   - run-and-bindings
@@ -27,6 +27,12 @@ steps:
       print(raw, count)
       print(type(raw), type(count))
       ```
+  - id: s-type-check
+    type: read
+    title: 类型与转换的最小对照
+    bodyMd: |
+      `type(value)` 查看值的类型；`int` 表示整数，`str` 表示文本，`float` 表示浮点数，`bool` 表示真假（True/False）。`str(3)` 得到文本 `"3"`，方便拼接说明；`float("3.5")` 得到浮点值。浮点数不等于精确十进制，本轮不展开误差。
+      `/` 是除法，`//` 在正整数例子里给出整除后的整数部分：`7 / 2` 为 3.5，`7 // 2` 为 3。`int(3.9)` 去掉小数部分得 3，不是四舍五入。`int("bad")` 会因文本不符合整数规则而报 ValueError；这里只识别，处理留到 13 课。
   - id: s-predict
     type: reveal
     title: 主例：先预测，再展开
@@ -57,6 +63,14 @@ steps:
     bodyMd: |
       有人认为"调用 `int(raw)` 就把 raw 本人变成了整数"。下面这段代码检验这个想法，顺带看清两个 `3` 的区别。
       先在纸上写下你的预测：三个 print 各输出什么？再点击展开核对实际输出和解释。
+
+      ```python
+      raw = "3"
+      count = int(raw)
+      print(raw)
+      print(count)
+      print(type(raw))
+      ```
     revealLabel: 先预测，再点开展开实际输出
     revealMd: |
       实际输出：

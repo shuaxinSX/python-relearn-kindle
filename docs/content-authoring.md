@@ -7,9 +7,9 @@
 ## 1. 写课前的自检流程
 
 ```bash
-cd /home/hatch/workspace/python-relearn
+# 在仓库根目录，按 README 安装 Python 3.13 / Node / Chromium 依赖后：
 .venv/bin/python tools/validate.py        # 内容校验：失败即停，看清报错里的文件/步骤/题目 ID
-.venv/bin/python -m unittest discover -s tests   # 全量测试（含样例蓝图与 fixtures 运行）
+.venv/bin/python tools/audit_v1.py        # 全量测试、浏览器与生产路径构建
 ```
 
 规则：**先写内容文件，再跑校验，最后才看构建产物**。`tools/validate.py`
@@ -138,4 +138,10 @@ cd /home/hatch/workspace/python-relearn
   `tests/test_examples.py` 会用 `sys.executable` 真实运行并比对。
   故意报错的例子必须标明异常类别与原因；不要用未解释的随机性、
   集合显示顺序或依赖外部服务的响应做固定答案。
+- `tests/test_content_examples.py` 还直接提取 YAML 中的 Python 围栏，逐一关联
+  执行上下文与独立预期，拒绝遗漏；实践解法由 `tests/test_practices.py` 组装执行。
+  故意死循环原题只运行题目要求的修复版，环境判断题仍需审核题设。
+- V1 内容/规格改动会使 `docs/v1-review.json` 的审阅记录过期，审计应失败。
+  先核对两份正式规格、答案与前置能力，再更新受影响条目的审阅说明和 SHA256；
+  不得只重算签名让测试变绿。该记录表明已审阅文本未变，不会自动理解教材。
 - 不要把题干、答案、课程顺序复制进 JavaScript：课程只在内容文件维护。

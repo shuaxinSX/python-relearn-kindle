@@ -20,6 +20,9 @@ main {
   margin: 0 auto;
   padding: 16px 20px 64px;
 }
+main, fieldset { min-width: 0; }
+fieldset { margin: 0; padding: 8px; }
+.md, h1, h2, a { overflow-wrap: break-word; word-wrap: break-word; }
 
 h1 { font-size: 1.3em; line-height: 1.4; margin: 0.8em 0; }
 h2 { font-size: 1.15em; line-height: 1.4; margin: 1.2em 0 0.6em; }
@@ -29,6 +32,9 @@ li { margin: 0.35em 0; }
 
 a { color: #0000ee; text-decoration: underline; }
 a:visited { color: #551a8b; }
+.btn { display: inline-block; min-height: 48px; line-height: 48px; }
+table { width: 100%; border-collapse: collapse; }
+th, td { border: 1px solid #000; padding: 4px; overflow-wrap: break-word; }
 
 code, pre {
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
@@ -96,6 +102,13 @@ textarea {
 
 /* 无脚本说明（有脚本时隐藏） */
 .js .no-js-note { display: none; }
+.quiz-submit, .quiz-options input, .quiz-result, .quiz-hint, .reveal-btn, .practice-done,
+.font-size, #export-btn, #import-btn, #clear-btn { display: none; }
+.js-quiz .quiz-submit, .js-reveal .reveal-btn,
+.js-progress .practice-done, .js-settings .font-size,
+.js-settings #export-btn, .js-settings #import-btn,
+.js-settings #clear-btn { display: block; }
+.js-quiz .quiz-options input { display: inline-block; }
 
 /* 分步门控 */
 .js-step .step { display: none; }
